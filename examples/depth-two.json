@@ -1,0 +1,28 @@
+{
+  "title": "Depth-two orchestration",
+  "direction": "DOWN",
+  "nodes": [
+    { "id": "root", "label": "Coordinator", "detail": "depth 0", "state": "running" },
+    { "id": "research", "label": "Research lead", "detail": "depth 1", "state": "running" },
+    { "id": "build", "label": "Build lead", "detail": "depth 1", "state": "blocked" },
+    { "id": "papers", "label": "Paper scout", "detail": "depth 2", "state": "succeeded" },
+    { "id": "bench", "label": "Benchmark", "detail": "depth 2", "state": "running" },
+    { "id": "frontend", "label": "Frontend", "detail": "depth 2", "state": "queued" },
+    { "id": "backend", "label": "Backend", "detail": "depth 2", "state": "failed" }
+  ],
+  "edges": [
+    { "source": "root", "target": "research", "label": "owns", "direction": "both" },
+    { "source": "root", "target": "build", "label": "owns", "direction": "both" },
+    { "source": "research", "target": "papers", "label": "delegates" },
+    { "source": "research", "target": "bench", "label": "delegates" },
+    { "source": "build", "target": "frontend", "label": "delegates" },
+    { "source": "build", "target": "backend", "label": "delegates" },
+    {
+      "source": "bench",
+      "target": "frontend",
+      "label": "tell",
+      "style": "dashed",
+      "kind": "message"
+    }
+  ]
+}

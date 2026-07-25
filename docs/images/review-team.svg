@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="846" viewBox="0 0 456 846" role="img" aria-label="Recursive review graph">
+  <rect width="100%" height="100%" rx="8" fill="#111827"/>
+  <text x="18" y="36" class="title">Recursive review graph</text>
+  <style>
+    .title { fill: #f8fafc; font: 700 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .graph, .marker { font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
+    .graph { fill: #cbd5e1; }
+    .marker { font-weight: 700; }
+  </style>
+<text x="18" y="54" class="graph"> </text>
+<text x="18" y="72" class="graph"> </text>
+<text x="18" y="90" class="graph">        ╭─────────────────────╮</text>
+<text x="18" y="108" class="graph">        │   Orchestrator      │</text>
+<text x="18" y="126" class="graph">        │ codex · gpt-5.6-sol │</text>
+<text x="18" y="144" class="graph">        ╰─────────────────────╯</text>
+<text x="18" y="162" class="graph">                │       │</text>
+<text x="18" y="180" class="graph">                ▲       │</text>
+<text x="18" y="198" class="graph">                │       ┼───────────────┼</text>
+<text x="18" y="216" class="graph">                │                       │</text>
+<text x="18" y="234" class="graph">    delegates   │                       │</text>
+<text x="18" y="252" class="graph">                │                       │</text>
+<text x="18" y="270" class="graph">                │                       │</text>
+<text x="18" y="288" class="graph">                ▼                       │</text>
+<text x="18" y="306" class="graph">        ╭───────────────╮               │</text>
+<text x="18" y="324" class="graph">        │   Review lead │               │</text>
+<text x="18" y="342" class="graph">        │ claude · opus │               │</text>
+<text x="18" y="360" class="graph">        ╰───────────────╯               │</text>
+<text x="18" y="378" class="graph">                │                       │</text>
+<text x="18" y="396" class="graph">                ▲                       │</text>
+<text x="18" y="414" class="graph">                │                       │</text>
+<text x="18" y="432" class="graph">    delegates   │                       │   checks</text>
+<text x="18" y="450" class="graph">                │                       │</text>
+<text x="18" y="468" class="graph">                │                       │</text>
+<text x="18" y="486" class="graph">                ▼                       │</text>
+<text x="18" y="504" class="graph">  ╭──────────────────────────╮          │</text>
+<text x="18" y="522" class="graph">  │   Core worker            │          │</text>
+<text x="18" y="540" class="graph">  │ maestro · kimi-k2.7-code │          │</text>
+<text x="18" y="558" class="graph">  ╰──────────────────────────╯          │</text>
+<text x="18" y="576" class="graph">                ┊                       │</text>
+<text x="18" y="594" class="graph">                ┊                       │</text>
+<text x="18" y="612" class="graph">                ┊                       │</text>
+<text x="18" y="630" class="graph">      reports   ┊                       │</text>
+<text x="18" y="648" class="graph">                ┊                       │</text>
+<text x="18" y="666" class="graph">                ┊                       │</text>
+<text x="18" y="684" class="graph">                ┊    ┼──────────────────┼</text>
+<text x="18" y="702" class="graph">                ▼    ▼</text>
+<text x="18" y="720" class="graph">           ╭──────────────╮</text>
+<text x="18" y="738" class="graph">           │   Verifier   │</text>
+<text x="18" y="756" class="graph">           │ codex · luna │</text>
+<text x="18" y="774" class="graph">           ╰──────────────╯</text>
+<text x="18" y="792" class="graph"> </text>
+<text x="18" y="810" class="graph"> </text>
+<text x="102" y="108" class="marker" fill="#facc15">◐</text>
+<text x="102" y="324" class="marker" fill="#facc15">◐</text>
+<text x="127.2" y="738" class="marker" fill="#22d3ee">◌</text>
+<text x="51.6" y="522" class="marker" fill="#4ade80">✓</text>
+</svg>

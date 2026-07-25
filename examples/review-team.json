@@ -1,0 +1,64 @@
+{
+  "id": "review-team",
+  "title": "Recursive review graph",
+  "direction": "DOWN",
+  "nodes": [
+    {
+      "id": "orchestrator",
+      "label": "Orchestrator",
+      "detail": "codex · gpt-5.6-sol",
+      "kind": "agent",
+      "state": "running"
+    },
+    {
+      "id": "review",
+      "label": "Review lead",
+      "detail": "claude · opus",
+      "kind": "agent",
+      "state": "running"
+    },
+    {
+      "id": "verify",
+      "label": "Verifier",
+      "detail": "codex · luna",
+      "kind": "evaluator",
+      "state": "queued"
+    },
+    {
+      "id": "worker",
+      "label": "Core worker",
+      "detail": "maestro · kimi-k2.7-code",
+      "kind": "agent",
+      "state": "succeeded"
+    }
+  ],
+  "edges": [
+    {
+      "source": "orchestrator",
+      "target": "review",
+      "label": "delegates",
+      "kind": "delegation",
+      "direction": "both"
+    },
+    {
+      "source": "orchestrator",
+      "target": "verify",
+      "label": "checks",
+      "kind": "verification"
+    },
+    {
+      "source": "review",
+      "target": "worker",
+      "label": "delegates",
+      "kind": "delegation",
+      "direction": "both"
+    },
+    {
+      "source": "worker",
+      "target": "verify",
+      "label": "reports",
+      "kind": "communication",
+      "style": "dashed"
+    }
+  ]
+}

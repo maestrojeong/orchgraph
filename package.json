@@ -1,0 +1,62 @@
+{
+  "name": "orchgraph",
+  "version": "0.0.1",
+  "description": "Graph engineering primitives for agentic orchestration.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "yeonwoo",
+  "packageManager": "bun@1.2.15",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "default": "./dist/terminal.js"
+    }
+  },
+  "bin": {
+    "orchgraph": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "biome check . && tsc --noEmit",
+    "format": "biome check --write .",
+    "test": "bun test",
+    "demo": "bun src/cli.ts examples/review-team.json",
+    "examples": "bun scripts/render-examples.ts",
+    "prepack": "bun run check && bun run test && bun run build"
+  },
+  "dependencies": {
+    "elkjs": "0.10.2",
+    "web-worker": "1.4.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.12",
+    "@types/node": "^20.19.0",
+    "bun-types": "^1.3.11",
+    "typescript": "^5.9.0"
+  },
+  "keywords": [
+    "agents",
+    "graph",
+    "orchestration",
+    "terminal",
+    "tui",
+    "elk"
+  ]
+}

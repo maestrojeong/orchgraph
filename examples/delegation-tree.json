@@ -1,0 +1,15 @@
+{
+  "title": "Delegation tree",
+  "direction": "DOWN",
+  "nodes": [
+    { "id": "lead", "label": "Lead", "detail": "plans and merges", "state": "running" },
+    { "id": "api", "label": "API worker", "detail": "codex", "state": "succeeded" },
+    { "id": "ui", "label": "UI worker", "detail": "claude", "state": "running" },
+    { "id": "tests", "label": "Test worker", "detail": "maestro", "state": "queued" }
+  ],
+  "edges": [
+    { "source": "lead", "target": "api", "label": "delegates", "kind": "delegation" },
+    { "source": "lead", "target": "ui", "label": "delegates", "kind": "delegation" },
+    { "source": "lead", "target": "tests", "label": "delegates", "kind": "delegation" }
+  ]
+}

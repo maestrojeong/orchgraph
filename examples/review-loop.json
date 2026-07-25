@@ -1,0 +1,21 @@
+{
+  "title": "Review loop",
+  "direction": "RIGHT",
+  "nodes": [
+    { "id": "implement", "label": "Implement", "detail": "working tree", "state": "running" },
+    { "id": "review", "label": "Review", "detail": "findings", "state": "queued" },
+    { "id": "verify", "label": "Verify", "detail": "tests and smoke", "state": "idle" }
+  ],
+  "edges": [
+    { "source": "implement", "target": "review", "label": "submit" },
+    { "source": "review", "target": "verify", "label": "approve" },
+    {
+      "source": "verify",
+      "target": "implement",
+      "label": "revise",
+      "direction": "backward",
+      "style": "dashed",
+      "kind": "feedback"
+    }
+  ]
+}
