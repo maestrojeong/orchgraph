@@ -66,4 +66,6 @@ export interface TerminalCanvas {
 export interface LayoutOptions {
   direction?: GraphDirection;
   spacing?: number;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }

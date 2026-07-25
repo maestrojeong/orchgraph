@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
-import ElkNodeImport from "elkjs";
+import { Worker as ThreadWorker } from "node:worker_threads";
 import ElkApiImport from "elkjs/lib/elk-api.js";
-import Worker from "web-worker";
+import WebWorker from "web-worker";
 import { parseGraphDocument } from "./schema.js";
 import { displayWidth } from "./terminal-width.js";
 import type {
@@ -56,27 +56,135 @@ type ElkInstance = {
   terminateWorker(): void;
 };
 
+interface ElkWorker {
+  onmessage: ((event: { data: unknown }) => void) | null;
+  postMessage(message: unknown): void;
+  terminate(): void;
+}
+
 type ElkConstructor = new (options: {
   workerUrl: string;
-  workerFactory: (url?: string) => Worker;
+  workerFactory: (url?: string) => ElkWorker;
 }) => ElkInstance;
-
-type ElkNodeConstructor = new () => ElkInstance;
 
 const require = createRequire(import.meta.url);
 const elkWorkerUrl = require.resolve("elkjs/lib/elk-worker.min.js");
 const elkModule = ElkApiImport as unknown as ElkConstructor | { default: ElkConstructor };
 const ElkApi = typeof elkModule === "function" ? elkModule : elkModule.default;
-const elkNodeModule = ElkNodeImport as unknown as
-  | ElkNodeConstructor
-  | { default: ElkNodeConstructor };
-const ElkNode = typeof elkNodeModule === "function" ? elkNodeModule : elkNodeModule.default;
+
+const NODE_WORKER_SOURCE = `
+const { parentPort, workerData } = require("node:worker_threads");
+const imported = require(workerData);
+const Worker = imported.Worker || (imported.default && imported.default.Worker);
+const worker = new Worker();
+worker.onmessage = ({ data }) => parentPort.postMessage(data);
+parentPort.on("message", (data) => worker.postMessage(data));
+`;
+
+class NodeElkWorker implements ElkWorker {
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  readonly #worker: ThreadWorker;
+  readonly #pendingIds = new Set<number>();
+  #terminating = false;
+
+  constructor(workerPath: string) {
+    this.#worker = new ThreadWorker(NODE_WORKER_SOURCE, {
+      eval: true,
+      execArgv: process.execArgv.filter((argument) => !argument.startsWith("--input-type")),
+      workerData: workerPath,
+    });
+    this.#worker.on("message", (data: { id?: number }) => {
+      if (typeof data.id === "number") this.#pendingIds.delete(data.id);
+      this.onmessage?.({ data });
+    });
+    this.#worker.on("error", (error) => {
+      this.#rejectPending(error);
+    });
+    this.#worker.on("exit", (code) => {
+      if (!this.#terminating && code !== 0) {
+        this.#rejectPending(new Error(`ELK worker exited with code ${code}`));
+      }
+    });
+  }
+
+  #rejectPending(error: Error): void {
+    for (const id of this.#pendingIds) {
+      this.onmessage?.({
+        data: { id, error: { message: error.message, stack: error.stack } },
+      });
+    }
+    this.#pendingIds.clear();
+  }
+
+  postMessage(message: unknown): void {
+    if (
+      typeof message === "object" &&
+      message !== null &&
+      "id" in message &&
+      typeof message.id === "number"
+    ) {
+      this.#pendingIds.add(message.id);
+    }
+    this.#worker.postMessage(message);
+  }
+
+  terminate(): void {
+    this.#terminating = true;
+    void this.#worker.terminate();
+  }
+}
 
 const MIN_SPACING = 2;
 const MAX_SPACING = 20;
 
 function normalizedSpacing(value = 4): number {
+  if (!Number.isFinite(value)) return 4;
   return Math.min(MAX_SPACING, Math.max(MIN_SPACING, Math.round(value)));
+}
+
+function abortReason(signal: AbortSignal): Error {
+  if (signal.reason instanceof Error) return signal.reason;
+  return new DOMException("The graph layout was aborted", "AbortError");
+}
+
+function layoutWithControls(
+  elk: ElkInstance,
+  input: ReturnType<typeof layoutInput>,
+  options: LayoutOptions,
+): Promise<ElkResult> {
+  const { signal } = options;
+  if (signal?.aborted) return Promise.reject(abortReason(signal));
+
+  const timeoutMs =
+    options.timeoutMs === undefined ? undefined : Math.max(1, Math.trunc(options.timeoutMs));
+  return new Promise<ElkResult>((resolve, reject) => {
+    let settled = false;
+    const settle = (action: () => void): void => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", onAbort);
+      if (timer !== undefined) clearTimeout(timer);
+      action();
+    };
+    const onAbort = (): void => {
+      elk.terminateWorker();
+      settle(() => reject(signal ? abortReason(signal) : new Error("Graph layout aborted")));
+    };
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            elk.terminateWorker();
+            settle(() => reject(new Error(`Graph layout timed out after ${timeoutMs}ms`)));
+          }, timeoutMs);
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+    elk.layout(input).then(
+      (result) => settle(() => resolve(result)),
+      (error: unknown) =>
+        settle(() => reject(error instanceof Error ? error : new Error(String(error)))),
+    );
+  });
 }
 
 function edgeId(edge: GraphEdge, index: number): string {
@@ -346,6 +454,13 @@ export async function layoutTerminalGraph(
   options: LayoutOptions = {},
 ): Promise<TerminalCanvas> {
   const graph = parseGraphDocument(value);
+  if (options.signal?.aborted) throw abortReason(options.signal);
+  if (
+    options.timeoutMs !== undefined &&
+    (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
+  ) {
+    throw new RangeError("timeoutMs must be a positive finite number");
+  }
   if (graph.nodes.length === 0) {
     return {
       ...(graph.title ? { title: graph.title } : {}),
@@ -356,17 +471,17 @@ export async function layoutTerminalGraph(
       height: 0,
     };
   }
-  const usesExternalWorker = Boolean(process.versions.bun);
-  const elk = usesExternalWorker
-    ? new ElkApi({
-        workerUrl: elkWorkerUrl,
-        workerFactory: (url) => new Worker(url ?? elkWorkerUrl),
-      })
-    : new ElkNode();
+  const elk = new ElkApi({
+    workerUrl: elkWorkerUrl,
+    workerFactory: (url) =>
+      process.versions.bun
+        ? (new WebWorker(url ?? elkWorkerUrl) as unknown as ElkWorker)
+        : new NodeElkWorker(url ?? elkWorkerUrl),
+  });
   try {
-    const result = await elk.layout(layoutInput(graph, options));
+    const result = await layoutWithControls(elk, layoutInput(graph, options), options);
     return renderCanvas(graph, result);
   } finally {
-    if (usesExternalWorker) elk.terminateWorker();
+    elk.terminateWorker();
   }
 }

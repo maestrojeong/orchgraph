@@ -6,7 +6,7 @@ Orchgraph turns a runtime-neutral graph document into an ELK-laid-out terminal
 canvas. Agent runtimes keep ownership of execution, permissions, and state;
 Orchgraph owns graph validation, layout, rendering, and viewport behavior.
 
-![Depth-two agent orchestration rendered by Orchgraph](docs/images/depth-two.svg)
+![Depth-two agent orchestration rendered by Orchgraph](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/depth-two.svg)
 
 ## Install
 
@@ -37,6 +37,19 @@ const canvas = await layoutTerminalGraph({
 });
 
 console.log(renderTerminalCanvas(canvas, { color: process.stdout.isTTY }).join("\n"));
+```
+
+Layout can be cancelled or bounded by a host application:
+
+```ts
+const controller = new AbortController();
+
+const canvas = await layoutTerminalGraph(document, {
+  signal: controller.signal,
+  timeoutMs: 15_000,
+});
+
+controller.abort();
 ```
 
 The graph document is deliberately small: nodes describe work and current
@@ -113,19 +126,19 @@ cat graph.json | npx orchgraph --direction RIGHT --spacing 6 --color
 
 One coordinator fans work out to independent agents.
 
-![Delegation tree](docs/images/delegation-tree.svg)
+![Delegation tree](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/delegation-tree.svg)
 
 ### Review loop
 
 Implementation, review, and verification form an explicit feedback loop.
 
-![Review loop](docs/images/review-loop.svg)
+![Review loop](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/review-loop.svg)
 
 ### Recursive team
 
 A depth-two team combines ownership, delegation, and cross-team messaging.
 
-![Recursive review team](docs/images/review-team.svg)
+![Recursive review team](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/review-team.svg)
 
 Run all source examples locally:
 
@@ -161,4 +174,4 @@ See [Architecture](docs/architecture.md).
 
 ## License
 
-Apache-2.0
+MIT

@@ -1,13 +1,27 @@
 {
   "name": "orchgraph",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Graph engineering primitives for agentic orchestration.",
   "type": "module",
-  "license": "Apache-2.0",
-  "author": "yeonwoo",
+  "license": "MIT",
+  "author": "maestroJeong <legend4020@snu.ac.kr>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maestrojeong/orchgraph.git"
+  },
+  "homepage": "https://github.com/maestrojeong/orchgraph#readme",
+  "bugs": {
+    "url": "https://github.com/maestrojeong/orchgraph/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "packageManager": "bun@1.2.15",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "bun": ">=1.2.15"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +36,7 @@
     }
   },
   "bin": {
-    "orchgraph": "./dist/cli.js"
+    "orchgraph": "dist/cli.js"
   },
   "files": [
     "dist",

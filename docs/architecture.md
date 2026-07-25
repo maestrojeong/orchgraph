@@ -45,6 +45,10 @@ without mutating that canvas. This split lets a host animate a running node,
 replace the default yellow ANSI style, or map the metadata into its own span
 renderer without recomputing ELK layout.
 
+Layout work runs in an external worker on Node.js and Bun. Hosts can cancel
+that worker with `AbortSignal` or enforce a `timeoutMs` limit without leaving a
+background layout running.
+
 ## Integration terminology
 
 Runtime-specific conversion is a projection, not an adapter. In Negotium,

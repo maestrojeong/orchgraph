@@ -66,6 +66,27 @@ describe("Orchgraph", () => {
     expect(rendered.join("\n")).toContain("<active:root>◐</active> 루트");
   });
 
+  test("terminates an in-flight layout through AbortSignal", async () => {
+    const controller = new AbortController();
+    const layout = layoutTerminalGraph(graph, { signal: controller.signal });
+
+    controller.abort();
+
+    await expect(layout).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  test("terminates a layout after a host-defined timeout", async () => {
+    await expect(layoutTerminalGraph(graph, { timeoutMs: 1 })).rejects.toThrow(
+      "Graph layout timed out after 1ms",
+    );
+  });
+
+  test("rejects invalid timeout values before starting layout work", async () => {
+    await expect(layoutTerminalGraph(graph, { timeoutMs: 0 })).rejects.toThrow(
+      "timeoutMs must be a positive finite number",
+    );
+  });
+
   test("renders every documented example with addressable geometry", async () => {
     const examples = new URL("../examples/", import.meta.url);
     const files = (await readdir(examples)).filter((file) => file.endsWith(".json"));
