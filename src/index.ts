@@ -3,6 +3,8 @@ export { graphDocumentSchema, parseGraphDocument } from "./schema.js";
 export {
   defaultTerminalTheme,
   renderTerminalCanvas,
+  type TerminalEdgeDecorator,
+  type TerminalEdgeTheme,
   type TerminalNodeDecorator,
   type TerminalRenderOptions,
   type TerminalStateTheme,

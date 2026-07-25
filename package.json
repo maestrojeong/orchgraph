@@ -1,6 +1,6 @@
 {
   "name": "orchgraph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Graph engineering primitives for agentic orchestration.",
   "type": "module",
   "license": "MIT",
@@ -42,6 +42,7 @@
     "docs",
     "examples",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {

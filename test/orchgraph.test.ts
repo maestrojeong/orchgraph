@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
-import { layoutTerminalGraph, parseGraphDocument, renderTerminalCanvas } from "../src/index.js";
+import {
+  layoutTerminalGraph,
+  parseGraphDocument,
+  renderTerminalCanvas,
+  stripAnsi,
+} from "../src/index.js";
 import { clampViewport, terminalViewportLines } from "../src/terminal.js";
 
 const graph = {
@@ -85,6 +90,60 @@ describe("Orchgraph", () => {
     await expect(layoutTerminalGraph(graph, { timeoutMs: 0 })).rejects.toThrow(
       "timeoutMs must be a positive finite number",
     );
+  });
+
+  test("renders a clean elbow instead of a crossing where a dashed edge turns", async () => {
+    const canvas = await layoutTerminalGraph({
+      title: "Dashed bend",
+      direction: "DOWN",
+      nodes: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ],
+      edges: [{ source: "a", target: "b", style: "dashed", direction: "backward" }],
+    });
+    const output = canvas.lines.join("\n");
+
+    // A single edge turning a corner must render as an elbow (╭╮╰╯), never
+    // as a crossing (┼┬┴├┤) — those are reserved for cells where two
+    // different edges actually overlap.
+    expect(output).toMatch(/[╭╮╰╯]/);
+    expect(output).not.toContain("┼");
+  });
+
+  test("keeps distinct edge-kind colors intact when multiple decorations share a row", async () => {
+    const canvas = await layoutTerminalGraph({
+      title: "Two kinds",
+      direction: "RIGHT",
+      nodes: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+        { id: "c", label: "C" },
+      ],
+      edges: [
+        { source: "a", target: "b", kind: "delegation" },
+        { source: "b", target: "c", kind: "verification" },
+      ],
+    });
+
+    const rendered = renderTerminalCanvas(canvas, {
+      color: true,
+      edgeTheme: {
+        delegation: (value) => `[35m${value}[0m`,
+        verification: (value) => `[36m${value}[0m`,
+      },
+    });
+    const output = rendered.join("\n");
+
+    // Each decorated cell must keep exactly the glyph the plain canvas had
+    // at that position — no stray escape bytes leaking into the visible text
+    // (the historical bug: a second decoration on the same row miscounted
+    // display columns because it re-scanned a line that already contained
+    // the first decoration's ANSI codes).
+    expect(output).toContain("[35m");
+    expect(output).toContain("[36m");
+    expect(output).not.toMatch(/\d\d?m\d/); // e.g. "36m0m" from a corrupted split
+    expect(stripAnsi(output)).toBe(canvas.lines.join("\n"));
   });
 
   test("renders every documented example with addressable geometry", async () => {

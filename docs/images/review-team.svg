@@ -15,7 +15,7 @@
 <text x="18" y="144" class="graph">        ╰─────────────────────╯</text>
 <text x="18" y="162" class="graph">                │       │</text>
 <text x="18" y="180" class="graph">                ▲       │</text>
-<text x="18" y="198" class="graph">                │       ┼───────────────┼</text>
+<text x="18" y="198" class="graph">                │       ╰───────────────╮</text>
 <text x="18" y="216" class="graph">                │                       │</text>
 <text x="18" y="234" class="graph">    delegates   │                       │</text>
 <text x="18" y="252" class="graph">                │                       │</text>
@@ -42,7 +42,7 @@
 <text x="18" y="630" class="graph">      reports   ┊                       │</text>
 <text x="18" y="648" class="graph">                ┊                       │</text>
 <text x="18" y="666" class="graph">                ┊                       │</text>
-<text x="18" y="684" class="graph">                ┊    ┼──────────────────┼</text>
+<text x="18" y="684" class="graph">                ┊    ╭──────────────────╯</text>
 <text x="18" y="702" class="graph">                ▼    ▼</text>
 <text x="18" y="720" class="graph">           ╭──────────────╮</text>
 <text x="18" y="738" class="graph">           │   Verifier   │</text>

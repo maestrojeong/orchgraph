@@ -6,7 +6,6 @@ import { parseGraphDocument } from "./schema.js";
 import { displayWidth } from "./terminal-width.js";
 import type {
   EdgeDirection,
-  EdgeStyle,
   GraphDocument,
   GraphEdge,
   GraphNode,
@@ -236,16 +235,75 @@ function rounded(value: number | undefined): number {
   return Math.max(0, Math.round(value ?? 0));
 }
 
-function lineCharacter(
-  existing: string,
-  axis: "horizontal" | "vertical",
-  style: EdgeStyle,
-): string {
-  const glyph =
-    style === "dashed" ? (axis === "horizontal" ? "┈" : "┊") : axis === "horizontal" ? "─" : "│";
-  if (existing === " " || existing === glyph) return glyph;
-  if ("─┈".includes(existing) && axis === "horizontal") return existing;
-  if ("│┊".includes(existing) && axis === "vertical") return existing;
+const DIR_UP = 1;
+const DIR_DOWN = 2;
+const DIR_LEFT = 4;
+const DIR_RIGHT = 8;
+
+/** Direction bits contributed to the two cells sharing a unit step, so a cell
+ * that only ever sees two opposite bits (a straight run) or two adjacent
+ * bits (an elbow) can be told apart from a cell where multiple distinct
+ * edges genuinely overlap (three or four bits). */
+function stepBits(xStep: number, yStep: number): { forward: number; backward: number } {
+  if (xStep > 0) return { forward: DIR_RIGHT, backward: DIR_LEFT };
+  if (xStep < 0) return { forward: DIR_LEFT, backward: DIR_RIGHT };
+  if (yStep > 0) return { forward: DIR_DOWN, backward: DIR_UP };
+  return { forward: DIR_UP, backward: DIR_DOWN };
+}
+
+// Elbow glyphs (a single edge turning 90°). Unicode's box-drawing block has
+// no dashed rounded-corner characters, so a dashed edge's turn intentionally
+// renders with the same solid corner as a straight edge — the alternative
+// (dropping the corner or reusing a straight dash glyph) reads as a broken
+// line rather than a clean turn. Only the straight runs on either side of the
+// corner stay dashed.
+const CORNER_GLYPH: Record<number, string> = {
+  [DIR_DOWN | DIR_RIGHT]: "╭",
+  [DIR_DOWN | DIR_LEFT]: "╮",
+  [DIR_UP | DIR_RIGHT]: "╰",
+  [DIR_UP | DIR_LEFT]: "╯",
+};
+
+const SOLID_STRAIGHT_GLYPH: Record<number, string> = {
+  [DIR_UP]: "│",
+  [DIR_DOWN]: "│",
+  [DIR_LEFT]: "─",
+  [DIR_RIGHT]: "─",
+  [DIR_UP | DIR_DOWN]: "│",
+  [DIR_LEFT | DIR_RIGHT]: "─",
+};
+
+const DASHED_STRAIGHT_GLYPH: Record<number, string> = {
+  [DIR_UP]: "┊",
+  [DIR_DOWN]: "┊",
+  [DIR_LEFT]: "┈",
+  [DIR_RIGHT]: "┈",
+  [DIR_UP | DIR_DOWN]: "┊",
+  [DIR_LEFT | DIR_RIGHT]: "┈",
+};
+
+/**
+ * Turns the set of directions that touch a cell into a single glyph.
+ *
+ * A cell with only two bits is either a straight run or a single elbow, so it
+ * always renders as a clean corner (╭╮╰╯) instead of a crossing. A cell only
+ * falls back to a T/cross glyph once three or more distinct directions meet
+ * there, which is the actual signal that two different edges overlap.
+ */
+function glyphForDirections(mask: number, dashedOnly: boolean): string {
+  const corner = CORNER_GLYPH[mask];
+  if (corner) return corner;
+  if (dashedOnly && DASHED_STRAIGHT_GLYPH[mask]) return DASHED_STRAIGHT_GLYPH[mask];
+  const straight = SOLID_STRAIGHT_GLYPH[mask];
+  if (straight) return straight;
+  const up = (mask & DIR_UP) !== 0;
+  const down = (mask & DIR_DOWN) !== 0;
+  const left = (mask & DIR_LEFT) !== 0;
+  const right = (mask & DIR_RIGHT) !== 0;
+  if (up && down && right && !left) return "├";
+  if (up && down && left && !right) return "┤";
+  if (left && right && down && !up) return "┬";
+  if (left && right && up && !down) return "┴";
   return "┼";
 }
 
@@ -325,14 +383,74 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
   const terminalEdges: TerminalCanvas["edges"] = [];
   const labels: Array<{ x: number; y: number; text: string }> = [];
 
+  // Pass 1: walk every edge section and accumulate, per cell, which of the four
+  // directions a line touches it from. A cell that only ever collects two bits
+  // is a straight run or a single elbow (rendered as a clean corner); a cell
+  // that collects three or four bits is where distinct edges actually overlap.
+  const directionMask = new Map<string, number>();
+  const styleCounts = new Map<string, { dashed: number; solid: number }>();
+  const cellKey = (x: number, y: number) => `${x}:${y}`;
+  const markDirection = (x: number, y: number, bit: number, dashed: boolean) => {
+    const key = cellKey(x, y);
+    directionMask.set(key, (directionMask.get(key) ?? 0) | bit);
+    const counts = styleCounts.get(key) ?? { dashed: 0, solid: 0 };
+    if (dashed) counts.dashed += 1;
+    else counts.solid += 1;
+    styleCounts.set(key, counts);
+  };
+
+  interface ResolvedEdge {
+    edge: GraphEdge & { id: string };
+    laidOutEdge: ElkEdge;
+    sections: Point[][];
+  }
+  const resolvedEdges: ResolvedEdge[] = [];
+
   for (const laidOutEdge of layout.edges ?? []) {
     const edge = edgesById.get(laidOutEdge.id);
     if (!edge) continue;
-    const edgeCells = new Map<string, Point>();
+    const dashed = (edge.style ?? "solid") === "dashed";
+    const sections: Point[][] = [];
     for (const section of laidOutEdge.sections ?? []) {
       const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint].map(
         (point) => ({ x: rounded(point.x) + 1, y: rounded(point.y) + 1 }),
       );
+      sections.push(points);
+      for (let index = 1; index < points.length; index += 1) {
+        const from = points[index - 1];
+        const to = points[index];
+        if (!from || !to) continue;
+        const horizontal = from.y === to.y;
+        const distance = horizontal ? Math.abs(to.x - from.x) : Math.abs(to.y - from.y);
+        const xStep = horizontal ? Math.sign(to.x - from.x) : 0;
+        const yStep = horizontal ? 0 : Math.sign(to.y - from.y);
+        const { forward, backward } = stepBits(xStep, yStep);
+        for (let offset = 0; offset < distance; offset += 1) {
+          const fromX = from.x + xStep * offset;
+          const fromY = from.y + yStep * offset;
+          const toX = from.x + xStep * (offset + 1);
+          const toY = from.y + yStep * (offset + 1);
+          markDirection(fromX, fromY, forward, dashed);
+          markDirection(toX, toY, backward, dashed);
+        }
+      }
+    }
+    resolvedEdges.push({ edge, laidOutEdge, sections });
+  }
+
+  // Pass 2: turn each accumulated direction set into its final glyph.
+  for (const [key, mask] of directionMask) {
+    const [x, y] = key.split(":").map(Number);
+    if (x === undefined || y === undefined) continue;
+    const counts = styleCounts.get(key);
+    const dashedOnly = counts !== undefined && counts.solid === 0 && counts.dashed > 0;
+    put(x, y, glyphForDirections(mask, dashedOnly));
+  }
+
+  // Pass 3: arrows, edge cell bookkeeping, and labels (order-independent overlays).
+  for (const { edge, laidOutEdge, sections } of resolvedEdges) {
+    const edgeCells = new Map<string, Point>();
+    for (const points of sections) {
       for (let index = 1; index < points.length; index += 1) {
         const from = points[index - 1];
         const to = points[index];
@@ -344,15 +462,6 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
         for (let offset = 0; offset <= distance; offset += 1) {
           const x = from.x + xStep * offset;
           const y = from.y + yStep * offset;
-          put(
-            x,
-            y,
-            lineCharacter(
-              cells[y]?.[x] ?? " ",
-              horizontal ? "horizontal" : "vertical",
-              edge.style ?? "solid",
-            ),
-          );
           edgeCells.set(`${x}:${y}`, { x, y });
         }
       }
