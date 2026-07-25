@@ -44,12 +44,13 @@ Layout can be cancelled or bounded by a host application:
 ```ts
 const controller = new AbortController();
 
-const canvas = await layoutTerminalGraph(document, {
+const pendingCanvas = layoutTerminalGraph(document, {
   signal: controller.signal,
   timeoutMs: 15_000,
 });
 
 controller.abort();
+await pendingCanvas; // rejects with AbortError
 ```
 
 The graph document is deliberately small: nodes describe work and current

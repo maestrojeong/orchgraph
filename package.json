@@ -14,8 +14,7 @@
     "url": "https://github.com/maestrojeong/orchgraph/issues"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "sideEffects": false,
   "packageManager": "bun@1.2.15",

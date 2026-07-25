@@ -12,7 +12,11 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.15
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run test
       - run: bun run build
+      - run: node --input-type=module -e 'await import("./scripts/node-smoke.mjs")'
