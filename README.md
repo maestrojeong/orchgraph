@@ -15,6 +15,8 @@ box-drawing canvas. (The GIF above is `scripts/demo-live.mjs` animating
 npm install orchgraph
 ```
 
+Requires Node.js 20+.
+
 ## Build a graph
 
 ```ts
@@ -262,13 +264,6 @@ For Negotium, a local `subagent-graph-projection.ts` maps topics
 (`subagentReportMode`, `subagentTellTargetIds`, delegation) into generic
 nodes and edges. Orchgraph does not import Negotium or communicate with its
 nodes — it only ever sees the `GraphDocument` that comes out of that mapping.
-
-## Development stack
-
-- Node.js 20+
-- ELK.js for deterministic layered layout
-- Zod for the public JSON contract
-- Framework-free Unicode terminal renderer
 
 See [Architecture](docs/architecture.md) and [Changelog](CHANGELOG.md).
 
