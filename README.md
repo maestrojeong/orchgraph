@@ -11,9 +11,10 @@ box-drawing canvas laid out with ELK. Agent runtimes keep ownership of
 execution, permissions, and state; Orchgraph owns graph validation, layout,
 rendering, and viewport behavior — so a live subagent tree stays readable
 whether it's printed once or animated every frame. The GIF above is
-`scripts/demo-live.mjs` replaying the exact graph from
-[Live subagent tree](#live-subagent-tree) below, re-laying it out and
-recoloring edges on every state change.
+`scripts/demo-live.mjs` walking a six-agent fleet
+(`examples/subagent-fleet.json`) through startup one delegation at a time:
+each new ownership or `tell` edge flashes bright orange for a moment, then
+settles back down while the node it just reached spins in place.
 
 ## Install
 

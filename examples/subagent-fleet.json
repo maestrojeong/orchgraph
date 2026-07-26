@@ -1,0 +1,95 @@
+{
+  "id": "subagent-fleet",
+  "title": "negotium",
+  "direction": "DOWN",
+  "nodes": [
+    {
+      "id": "negotium",
+      "label": "negotium",
+      "detail": "codex · gpt-5.6-sol · medium",
+      "state": "idle"
+    },
+    {
+      "id": "orchgraph-release-review",
+      "label": "orchgraph-release-review",
+      "detail": "codex · gpt-5.6-terra · medium",
+      "state": "idle"
+    },
+    {
+      "id": "negotium-orchgraph-review",
+      "label": "negotium-orchgraph-review",
+      "detail": "codex · gpt-5.6-terra · medium",
+      "state": "idle"
+    },
+    {
+      "id": "orchgraph-explainer",
+      "label": "orchgraph-explainer",
+      "detail": "codex · gpt-5.6-terra · medium",
+      "state": "idle"
+    },
+    {
+      "id": "smoke-tests",
+      "label": "smoke-tests",
+      "detail": "codex · gpt-5.6-luna · low",
+      "state": "idle"
+    },
+    {
+      "id": "docs-sync",
+      "label": "docs-sync",
+      "detail": "codex · gpt-5.6-luna · low",
+      "state": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "owns:negotium:orchgraph-release-review",
+      "source": "negotium",
+      "target": "orchgraph-release-review",
+      "kind": "owns",
+      "direction": "both",
+      "style": "solid"
+    },
+    {
+      "id": "owns:negotium:negotium-orchgraph-review",
+      "source": "negotium",
+      "target": "negotium-orchgraph-review",
+      "kind": "owns",
+      "direction": "both",
+      "style": "solid"
+    },
+    {
+      "id": "owns-parent-only:negotium:orchgraph-explainer",
+      "source": "negotium",
+      "target": "orchgraph-explainer",
+      "kind": "owns-parent-only",
+      "direction": "forward",
+      "style": "solid",
+      "label": "status only ↓"
+    },
+    {
+      "id": "owns:orchgraph-release-review:smoke-tests",
+      "source": "orchgraph-release-review",
+      "target": "smoke-tests",
+      "kind": "owns",
+      "direction": "both",
+      "style": "solid"
+    },
+    {
+      "id": "owns:negotium-orchgraph-review:docs-sync",
+      "source": "negotium-orchgraph-review",
+      "target": "docs-sync",
+      "kind": "owns",
+      "direction": "both",
+      "style": "solid"
+    },
+    {
+      "id": "tell:negotium-orchgraph-review:orchgraph-release-review",
+      "source": "negotium-orchgraph-review",
+      "target": "orchgraph-release-review",
+      "kind": "tell",
+      "direction": "forward",
+      "style": "dashed",
+      "label": "tell"
+    }
+  ]
+}
