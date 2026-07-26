@@ -1,10 +1,14 @@
 # Orchgraph
 
-Graph engineering primitives for agentic orchestration.
+See who's working on what, right in your terminal — a renderer for
+visualizing live agent and subagent orchestration.
 
-Orchgraph turns a runtime-neutral graph document into an ELK-laid-out terminal
-canvas. Agent runtimes keep ownership of execution, permissions, and state;
-Orchgraph owns graph validation, layout, rendering, and viewport behavior.
+Point it at a graph of who owns whom, who's delegating, who's talking to
+whom, and who's still running, and Orchgraph turns that into a clean
+box-drawing canvas laid out with ELK. Agent runtimes keep ownership of
+execution, permissions, and state; Orchgraph owns graph validation, layout,
+rendering, and viewport behavior — so a live subagent tree stays readable
+whether it's printed once or animated every frame.
 
 ![Depth-two agent orchestration rendered by Orchgraph](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/depth-two.svg)
 
@@ -96,6 +100,24 @@ The decorator receives the full `TerminalNode`, including its state, bounds,
 and marker position, so an existing TUI can use its own span or theme system
 instead of ANSI.
 
+Edges can be color-coded the same way, keyed by an edge's free-form `kind`
+(e.g. `delegation`, `verification`, `feedback`) instead of node state:
+
+```ts
+const lines = renderTerminalCanvas(canvas, {
+  color: true,
+  edgeTheme: {
+    delegation: (segment) => `[35m${segment}[0m`,
+    verification: (segment) => `[36m${segment}[0m`,
+    feedback: (segment) => `[33m${segment}[0m`,
+  },
+});
+```
+
+There is no built-in default palette for `edgeTheme` since `kind` values are
+project-specific — supply a decorator only for the kinds you want to
+distinguish.
+
 ## Embed in a TUI
 
 Orchgraph does not own stdin, stdout, or the alternate screen:
@@ -122,6 +144,14 @@ cat graph.json | npx orchgraph --direction RIGHT --spacing 6 --color
 ```
 
 ## Examples
+
+### Live subagent tree
+
+A real orchestration host (Negotium) projecting its topic tree — ownership,
+a status-only child, and cross-topic messaging between siblings — straight
+from `subagentReportMode` and `subagentTellTargetIds` into a `GraphDocument`.
+
+![Live subagent tree](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/negotium-subagents.svg)
 
 ### Delegation tree
 
@@ -171,7 +201,7 @@ import Negotium or communicate with its nodes.
 - Framework-free Unicode terminal renderer
 - Biome for linting and formatting
 
-See [Architecture](docs/architecture.md).
+See [Architecture](docs/architecture.md) and [Changelog](CHANGELOG.md).
 
 ## License
 

@@ -1,0 +1,67 @@
+{
+  "id": "subagents",
+  "title": "negotium",
+  "direction": "DOWN",
+  "nodes": [
+    {
+      "id": "negotium",
+      "label": "negotium",
+      "detail": "codex · gpt-5.6-sol · medium",
+      "state": "running"
+    },
+    {
+      "id": "orchgraph-release-review",
+      "label": "orchgraph-release-review",
+      "detail": "codex · gpt-5.6-terra · medium",
+      "state": "running"
+    },
+    {
+      "id": "negotium-orchgraph-review",
+      "label": "negotium-orchgraph-review",
+      "detail": "codex · gpt-5.6-terra · medium",
+      "state": "succeeded"
+    },
+    {
+      "id": "orchgraph-explainer",
+      "label": "orchgraph-explainer",
+      "detail": "codex · gpt-5.6-terra · medium",
+      "state": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "owns:negotium:orchgraph-release-review",
+      "source": "negotium",
+      "target": "orchgraph-release-review",
+      "kind": "owns",
+      "direction": "both",
+      "style": "solid"
+    },
+    {
+      "id": "owns:negotium:negotium-orchgraph-review",
+      "source": "negotium",
+      "target": "negotium-orchgraph-review",
+      "kind": "owns",
+      "direction": "both",
+      "style": "solid"
+    },
+    {
+      "id": "tell:negotium-orchgraph-review:orchgraph-release-review",
+      "source": "negotium-orchgraph-review",
+      "target": "orchgraph-release-review",
+      "kind": "tell",
+      "direction": "forward",
+      "style": "dashed",
+      "label": "tell"
+    },
+    {
+      "id": "owns-parent-only:negotium:orchgraph-explainer",
+      "source": "negotium",
+      "target": "orchgraph-explainer",
+      "kind": "owns-parent-only",
+      "direction": "forward",
+      "style": "solid",
+      "label": "status only ↓"
+    }
+  ]
+}

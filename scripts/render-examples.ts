@@ -2,7 +2,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { layoutTerminalGraph, type NodeState } from "../src/index.js";
 
-const examples = ["delegation-tree.json", "review-loop.json", "depth-two.json", "review-team.json"];
+const examples = [
+  "delegation-tree.json",
+  "review-loop.json",
+  "depth-two.json",
+  "review-team.json",
+  "negotium-subagents.json",
+];
 const outputDirectory = new URL("../docs/images/", import.meta.url);
 const stateColors: Record<NodeState, string> = {
   idle: "#94a3b8",

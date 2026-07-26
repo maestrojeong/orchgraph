@@ -1,7 +1,7 @@
 {
   "name": "orchgraph",
   "version": "0.1.1",
-  "description": "Graph engineering primitives for agentic orchestration.",
+  "description": "Terminal renderer for visualizing live agent and subagent orchestration.",
   "type": "module",
   "license": "MIT",
   "author": "maestroJeong <legend4020@snu.ac.kr>",
