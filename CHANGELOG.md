@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.2
+
+### Added
+
+- `style()`, a small helper that builds a `theme`/`edgeTheme` decorator from
+  named options (`{ color: "orange", bold: true }`) instead of a raw ANSI
+  escape sequence (`[1;38;5;214m`). Exported alongside `StyleOptions`
+  and `TerminalColor`. `defaultTerminalTheme` is now implemented with it too.
+- A live demo (`docs/images/live-demo.gif`, built from
+  `scripts/demo-live.mjs`) showing node states and edge highlights changing
+  over time, embedded at the top of the README.
+
 ## 0.1.1
 
 ### Fixed

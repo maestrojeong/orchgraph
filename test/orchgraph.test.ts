@@ -5,6 +5,7 @@ import {
   parseGraphDocument,
   renderTerminalCanvas,
   stripAnsi,
+  style,
 } from "../src/index.js";
 import { clampViewport, terminalViewportLines } from "../src/terminal.js";
 
@@ -69,6 +70,15 @@ describe("Orchgraph", () => {
     });
 
     expect(rendered.join("\n")).toContain("<active:root>◐</active> 루트");
+  });
+
+  test("style() builds decorators from named colors instead of raw ANSI codes", () => {
+    expect(style({ color: "red" })("X")).toBe("[31mX[0m");
+    expect(style({ color: "yellow", bold: true })("X")).toBe("[1;33mX[0m");
+    expect(style({ invert: true })("X")).toBe("[7mX[0m");
+    expect(style({ color: "orange" })("X")).toBe("[38;5;214mX[0m");
+    expect(style({})("X")).toBe("X");
+    expect(stripAnsi(style({ color: "orange", bold: true })("X"))).toBe("X");
   });
 
   test("terminates an in-flight layout through AbortSignal", async () => {

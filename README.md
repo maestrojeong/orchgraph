@@ -1,5 +1,7 @@
 # Orchgraph
 
+![Live subagent graph, animated: ownership lights up, then a tell message, then a status-only fan-out](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/live-demo.gif)
+
 See who's working on what, right in your terminal — a renderer for
 visualizing live agent and subagent orchestration.
 
@@ -8,9 +10,10 @@ whom, and who's still running, and Orchgraph turns that into a clean
 box-drawing canvas laid out with ELK. Agent runtimes keep ownership of
 execution, permissions, and state; Orchgraph owns graph validation, layout,
 rendering, and viewport behavior — so a live subagent tree stays readable
-whether it's printed once or animated every frame.
-
-![Depth-two agent orchestration rendered by Orchgraph](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/depth-two.svg)
+whether it's printed once or animated every frame. The GIF above is
+`scripts/demo-live.mjs` replaying the exact graph from
+[Live subagent tree](#live-subagent-tree) below, re-laying it out and
+recoloring edges on every state change.
 
 ## Install
 
@@ -85,13 +88,15 @@ and failed nodes have separate defaults. Hosts can replace any state style or
 the running frames:
 
 ```ts
+import { renderTerminalCanvas, style } from "orchgraph";
+
 const lines = renderTerminalCanvas(canvas, {
   color: true,
   animationFrame,
   runningFrames: ["⠋", "⠙", "⠹", "⠸"],
   theme: {
-    running: (marker, node) => `\u001b[38;5;214m${marker}\u001b[0m`,
-    blocked: (marker, node) => `\u001b[7m${marker}\u001b[0m`,
+    running: style({ color: "orange" }),
+    blocked: style({ invert: true }),
   },
 });
 ```
@@ -107,9 +112,9 @@ Edges can be color-coded the same way, keyed by an edge's free-form `kind`
 const lines = renderTerminalCanvas(canvas, {
   color: true,
   edgeTheme: {
-    delegation: (segment) => `[35m${segment}[0m`,
-    verification: (segment) => `[36m${segment}[0m`,
-    feedback: (segment) => `[33m${segment}[0m`,
+    delegation: style({ color: "magenta" }),
+    verification: style({ color: "cyan" }),
+    feedback: style({ color: "yellow" }),
   },
 });
 ```

@@ -1,3 +1,4 @@
+export { type StyleOptions, style, type TerminalColor } from "./ansi.js";
 export { layoutTerminalGraph } from "./layout.js";
 export { graphDocumentSchema, parseGraphDocument } from "./schema.js";
 export {

@@ -1,0 +1,19 @@
+Output docs/images/live-demo.gif
+
+Set Shell "bash"
+Set FontSize 13
+Set Width 1000
+Set Height 900
+Set Padding 16
+Set Theme "Dracula"
+Set TypingSpeed 40ms
+
+Hide
+Type "clear"
+Enter
+Sleep 300ms
+Show
+
+Type "node scripts/demo-live.mjs"
+Enter
+Sleep 9500ms

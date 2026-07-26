@@ -1,3 +1,4 @@
+import { style } from "./ansi.js";
 import { displayWidth } from "./terminal-width.js";
 import type { NodeState, TerminalCanvas, TerminalEdge, TerminalNode } from "./types.js";
 
@@ -29,14 +30,12 @@ export interface TerminalRenderOptions {
   edgeTheme?: TerminalEdgeTheme;
 }
 
-const RESET = "\u001b[0m";
-
 export const defaultTerminalTheme: Readonly<TerminalStateTheme> = {
-  queued: (value) => `\u001b[36m${value}${RESET}`,
-  running: (value) => `\u001b[1;33m${value}${RESET}`,
-  blocked: (value) => `\u001b[33m${value}${RESET}`,
-  succeeded: (value) => `\u001b[32m${value}${RESET}`,
-  failed: (value) => `\u001b[31m${value}${RESET}`,
+  queued: style({ color: "cyan" }),
+  running: style({ color: "yellow", bold: true }),
+  blocked: style({ color: "yellow" }),
+  succeeded: style({ color: "green" }),
+  failed: style({ color: "red" }),
 };
 
 const DEFAULT_RUNNING_FRAMES = ["◐", "◓", "◑", "◒"] as const;
