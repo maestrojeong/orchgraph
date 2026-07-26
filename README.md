@@ -3,18 +3,11 @@
 ![Live subagent graph, animated: ownership lights up, then a tell message, then a status-only fan-out](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/live-demo.gif)
 
 See who's working on what, right in your terminal — a renderer for
-visualizing live agent and subagent orchestration.
-
-Point it at a graph of who owns whom, who's delegating, who's talking to
-whom, and who's still running, and Orchgraph turns that into a clean
-box-drawing canvas laid out with ELK. Agent runtimes keep ownership of
-execution, permissions, and state; Orchgraph owns graph validation, layout,
-rendering, and viewport behavior — so a live subagent tree stays readable
-whether it's printed once or animated every frame. The GIF above is
-`scripts/demo-live.mjs` walking a six-agent fleet
-(`examples/subagent-fleet.json`) through startup one delegation at a time:
-each new ownership or `tell` edge flashes bright orange for a moment, then
-settles back down while the node it just reached spins in place.
+visualizing live agent and subagent orchestration. Point it at a graph of
+who owns whom, who's delegating, who's talking to whom, and who's still
+running, and Orchgraph lays it out with ELK and renders it as a Unicode
+box-drawing canvas. (The GIF above is `scripts/demo-live.mjs` animating
+`examples/subagent-fleet.json` one delegation at a time.)
 
 ## Install
 
@@ -44,26 +37,65 @@ const canvas = await layoutTerminalGraph({
   ],
 });
 
+if (canvas.title) console.log(canvas.title, "\n");
 console.log(renderTerminalCanvas(canvas, { color: process.stdout.isTTY }).join("\n"));
 ```
 
-Layout can be cancelled or bounded by a host application:
+### Document reference
+
+| `GraphDocument` | Type | Notes |
+| --- | --- | --- |
+| `nodes`, `edges` | `GraphNode[]`, `GraphEdge[]` | required |
+| `id`, `title` | `string` | optional; `title` is exposed as `canvas.title`, not baked into `canvas.lines` |
+| `direction` | `"DOWN" \| "UP" \| "LEFT" \| "RIGHT"` | default `"DOWN"`; overridden by `LayoutOptions.direction` |
+| `metadata` | `Record<string, unknown>` | passed through, ignored by layout/render |
+
+| `GraphNode` | Type | Notes |
+| --- | --- | --- |
+| `id`, `label` | `string` | required |
+| `detail`, `kind` | `string` | optional; `detail` renders under the label, `kind` is a fallback if `detail` is absent |
+| `state` | `NodeState` | `"idle" \| "queued" \| "running" \| "blocked" \| "succeeded" \| "failed"`, default `"idle"` (no color by default — see [Render live state](#render-live-state)) |
+| `metadata` | `Record<string, unknown>` | passed through |
+
+| `GraphEdge` | Type | Notes |
+| --- | --- | --- |
+| `source`, `target` | `string` | required, must match node ids |
+| `id`, `label`, `kind` | `string` | optional; `id` defaults to `` `${kind ?? "edge"}:${source}:${target}:${index}` ``, `kind` drives `edgeTheme` |
+| `direction` | `EdgeDirection` | `"forward" \| "backward" \| "both" \| "none"`, default `"forward"` |
+| `style` | `EdgeStyle` | `"solid" \| "dashed"`, default `"solid"` |
+| `metadata` | `Record<string, unknown>` | passed through |
+
+### Validate untrusted input
+
+`layoutTerminalGraph` validates internally, but hosts accepting graphs from
+elsewhere (a file, an API request) can validate up front with the same Zod
+schema:
+
+```ts
+import { parseGraphDocument } from "orchgraph";
+
+parseGraphDocument(untrustedJson); // throws ZodError-based messages like
+// "duplicate node id: worker" or "unknown target node: missing"
+```
+
+The underlying `graphDocumentSchema` (a Zod schema) is also exported, for
+hosts that want `.safeParse()` instead of a throwing call.
+
+### Layout options
 
 ```ts
 const controller = new AbortController();
 
-const pendingCanvas = layoutTerminalGraph(document, {
+const pendingCanvas = layoutTerminalGraph(graphDocument, {
+  direction: "RIGHT", // overrides GraphDocument.direction
+  spacing: 6, // clamped to 2..20, default 4
   signal: controller.signal,
-  timeoutMs: 15_000,
+  timeoutMs: 15_000, // must be a positive finite number
 });
 
 controller.abort();
 await pendingCanvas; // rejects with AbortError
 ```
-
-The graph document is deliberately small: nodes describe work and current
-state, while edges describe delegation, verification, feedback, or any
-application-defined relationship.
 
 ## Render live state
 
@@ -80,42 +112,51 @@ setInterval(() => {
     color: true,
     animationFrame: animationFrame++,
   });
-  process.stdout.write(`\u001b[H${lines.join("\n")}`);
+  process.stdout.write(`[H${lines.join("\n")}`);
 }, 120);
 ```
 
-Running nodes animate in bold yellow by default. Queued, blocked, succeeded,
-and failed nodes have separate defaults. Hosts can replace any state style or
-the running frames:
+Running nodes animate through `runningFrames` in bold yellow by default;
+queued, blocked, succeeded, and failed nodes have their own default colors
+(see the exported `defaultTerminalTheme`), and `idle` has none. Hosts can
+replace any state's decorator, or the running frames, and `style()` builds
+a decorator from named options instead of raw ANSI codes:
 
 ```ts
-import { renderTerminalCanvas, style } from "orchgraph";
+import { defaultTerminalTheme, renderTerminalCanvas, style } from "orchgraph";
 
 const lines = renderTerminalCanvas(canvas, {
   color: true,
   animationFrame,
   runningFrames: ["⠋", "⠙", "⠹", "⠸"],
   theme: {
-    running: style({ color: "orange" }),
+    ...defaultTerminalTheme, // keep the rest, override just what you need
+    running: style({ color: "orange", bold: true }),
     blocked: style({ invert: true }),
   },
 });
 ```
 
-The decorator receives the full `TerminalNode`, including its state, bounds,
-and marker position, so an existing TUI can use its own span or theme system
-instead of ANSI.
+`style()` accepts `color` (`black`, `red`, `green`, `yellow`, `blue`,
+`magenta`, `cyan`, `white`, `gray`, `orange`, `pink`) plus `bold`, `dim`, and
+`invert`. A decorator is just `(value: string, node: TerminalNode) => string`,
+so a theme entry can also be a plain function — reading `node.state`,
+`node.metadata`, or bounds — if you'd rather hook into an existing TUI's own
+span or theme system instead of ANSI.
 
 Edges can be color-coded the same way, keyed by an edge's free-form `kind`
-(e.g. `delegation`, `verification`, `feedback`) instead of node state:
+(e.g. `delegation`, `verification`, `feedback`) instead of node state. The
+decorator's second argument is the full `TerminalEdge` (`id`, `source`,
+`target`, `kind`, `cells`), so it can also single out one specific edge by id:
 
 ```ts
+const activeEdgeId = "delegation:lead:worker"; // whatever your host is tracking
+
 const lines = renderTerminalCanvas(canvas, {
   color: true,
   edgeTheme: {
-    delegation: style({ color: "magenta" }),
-    verification: style({ color: "cyan" }),
-    feedback: style({ color: "yellow" }),
+    delegation: (segment, edge) =>
+      edge.id === activeEdgeId ? style({ color: "cyan", bold: true })(segment) : segment,
   },
 });
 ```
@@ -126,23 +167,45 @@ distinguish.
 
 ## Embed in a TUI
 
-Orchgraph does not own stdin, stdout, or the alternate screen:
+Orchgraph does not own stdin, stdout, or the alternate screen. `clampViewport`
+keeps a pan position inside the canvas bounds, and `terminalViewportLines`
+slices out just the visible rows/columns:
 
 ```ts
-import { terminalViewportLines } from "orchgraph/terminal";
+import { clampViewport, terminalViewportLines } from "orchgraph/terminal";
 
-const lines = terminalViewportLines(canvas, {
-  x: 0,
-  y: 0,
-  width: 80,
-  height: 24,
-});
+const viewport = clampViewport(canvas, { x: panX, y: panY, width: 80, height: 24 });
+const lines = terminalViewportLines(canvas, viewport);
 ```
 
-Canvas metadata exposes node bounds and edge cells for hit testing, panning,
-selection, and live edge highlighting.
+Canvas metadata (`canvas.nodes[].x/y/width/height`, `canvas.edges[].cells`)
+exposes node bounds and edge cells for hit testing, panning, selection, and
+live edge highlighting.
+
+## Terminal utilities
+
+`displayWidth`, `runeWidth`, and `stripAnsi` are exported for hosts doing
+their own column math — e.g. measuring a label before laying out a
+surrounding panel, or comparing rendered output in tests without stripping
+ANSI by hand:
+
+```ts
+import { displayWidth, stripAnsi } from "orchgraph";
+
+displayWidth("한글"); // 4 — wide characters count as 2 columns
+stripAnsi(decoratedLine); // the same line with ANSI escapes removed
+```
 
 ## CLI
+
+```
+Usage: orchgraph [file.json] [--direction DOWN|UP|LEFT|RIGHT] [--spacing 2..20] [--color]
+```
+
+Reads a graph document from `file.json`, or from stdin if no file is given,
+and prints the rendered canvas (with `canvas.title` first, if set). Flags:
+`-d`/`--direction`, `-s`/`--spacing`, `-c`/`--color` (defaults to on when
+stdout is a TTY), `-h`/`--help`.
 
 ```bash
 npx orchgraph graph.json
@@ -154,8 +217,9 @@ cat graph.json | npx orchgraph --direction RIGHT --spacing 6 --color
 ### Live subagent tree
 
 A real orchestration host (Negotium) projecting its topic tree — ownership,
-a status-only child, and cross-topic messaging between siblings — straight
-from `subagentReportMode` and `subagentTellTargetIds` into a `GraphDocument`.
+a status-only child, and cross-topic messaging between siblings — into a
+`GraphDocument`. See [Runtime boundary](#runtime-boundary) for how a host
+does that projection.
 
 ![Live subagent tree](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/negotium-subagents.svg)
 
@@ -186,26 +250,25 @@ npx orchgraph examples/depth-two.json --color
 
 ## Runtime boundary
 
-Orchgraph is an npm library, not a runtime adapter. A host application projects
-its domain objects into `GraphDocument`:
+Orchgraph is an npm library, not a runtime adapter — it owns graph
+validation, layout, and rendering, and nothing else. A host application
+projects its own domain objects into a `GraphDocument`:
 
 ```text
 runtime domain objects -> projection function -> GraphDocument -> Orchgraph
 ```
 
-For Negotium, a local `subagent-graph-projection.ts` maps topics, delegation,
-reporting, and tell grants into generic nodes and edges. Orchgraph does not
-import Negotium or communicate with its nodes.
+For Negotium, a local `subagent-graph-projection.ts` maps topics
+(`subagentReportMode`, `subagentTellTargetIds`, delegation) into generic
+nodes and edges. Orchgraph does not import Negotium or communicate with its
+nodes — it only ever sees the `GraphDocument` that comes out of that mapping.
 
 ## Development stack
 
-- TypeScript with strict mode
-- Node.js 20+ runtime
-- Bun for installs and tests
+- Node.js 20+
 - ELK.js for deterministic layered layout
 - Zod for the public JSON contract
 - Framework-free Unicode terminal renderer
-- Biome for linting and formatting
 
 See [Architecture](docs/architecture.md) and [Changelog](CHANGELOG.md).
 
