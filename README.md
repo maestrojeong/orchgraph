@@ -2,12 +2,13 @@
 
 ![Live subagent graph, animated: ownership lights up, then a tell message, then a status-only fan-out](https://raw.githubusercontent.com/maestrojeong/orchgraph/main/docs/images/live-demo.gif)
 
-See who's working on what, right in your terminal — a renderer for
-visualizing live agent and subagent orchestration. Point it at a graph of
-who owns whom, who's delegating, who's talking to whom, and who's still
-running, and Orchgraph lays it out with ELK and renders it as a Unicode
-box-drawing canvas. (The GIF above is `scripts/demo-live.mjs` animating
-`examples/subagent-fleet.json` one delegation at a time.)
+See who's working on what — a small renderer toolkit for visualizing live
+agent and subagent orchestration in terminals, SVG, or HTML. Point it at a
+graph of who owns whom, who's delegating, who's talking to whom, and who's
+still running, and Orchgraph lays it out with ELK before rendering the same
+geometry in the format your host needs. (The GIF above is
+`scripts/demo-live.mjs` animating `examples/subagent-fleet.json` one
+delegation at a time.)
 
 ## Install
 
@@ -62,7 +63,7 @@ console.log(renderTerminalCanvas(canvas, { color: process.stdout.isTTY }).join("
 | `GraphEdge` | Type | Notes |
 | --- | --- | --- |
 | `source`, `target` | `string` | required, must match node ids |
-| `id`, `label`, `kind` | `string` | optional; `id` defaults to `` `${kind ?? "edge"}:${source}:${target}:${index}` ``, `kind` drives `edgeTheme` |
+| `id`, `label`, `kind` | `string` | optional; anonymous IDs are scoped by `kind`, endpoints, and parallel-edge occurrence; use an explicit `id` when retaining live selection/animation state |
 | `direction` | `EdgeDirection` | `"forward" \| "backward" \| "both" \| "none"`, default `"forward"` |
 | `style` | `EdgeStyle` | `"solid" \| "dashed"`, default `"solid"` |
 | `metadata` | `Record<string, unknown>` | passed through |
@@ -99,10 +100,55 @@ controller.abort();
 await pendingCanvas; // rejects with AbortError
 ```
 
+### Reuse geometry or provide a layout engine
+
+The convenience API above performs validation, layout, and terminal rendering.
+Renderers and live hosts can split those stages and reuse the geometry:
+
+```ts
+import { layoutGraph, renderTerminalGraph } from "orchgraph";
+
+const geometry = await layoutGraph(graphDocument);
+const canvas = renderTerminalGraph(graphDocument, geometry);
+```
+
+`GraphGeometry` contains only positioned node bounds and routed edge points;
+it has no terminal glyphs or ANSI styling. A host can therefore feed it into
+another renderer. `layoutGraph` and `layoutTerminalGraph` also accept
+`{ engine: LayoutEngine }` for applications that provide a layout backend
+other than the built-in `ElkLayoutEngine`.
+
+### SVG and HTML renderers
+
+The same geometry can be rendered without rerunning ELK:
+
+```ts
+import { layoutGraph } from "orchgraph";
+import { renderHtmlGraph } from "orchgraph/html";
+import { renderSvgGraph } from "orchgraph/svg";
+
+const geometry = await layoutGraph(graphDocument);
+
+const svg = renderSvgGraph(graphDocument, geometry, {
+  nodeStates: currentNodeStates,
+});
+const html = renderHtmlGraph(graphDocument, geometry, {
+  nodeStates: currentNodeStates,
+  className: "review-panel",
+});
+```
+
+`renderSvgGraph` returns a standalone SVG string. `renderHtmlGraph` returns an
+embeddable HTML fragment with an SVG edge layer and semantic HTML node
+elements. Both expose state/kind classes and `data-*` attributes, preserve
+metadata, escape graph-provided content, and support `includeStyles: false`
+when a host supplies its own stylesheet.
+
 ## Render live state
 
 `layoutTerminalGraph` returns a clean, ANSI-free canvas. Apply terminal color
-and animation only when writing a frame:
+and animation only when writing a frame. `nodeStates` overlays fresh runtime
+state without mutating the canvas or rerunning ELK:
 
 ```ts
 import { renderTerminalCanvas } from "orchgraph";
@@ -113,6 +159,7 @@ setInterval(() => {
   const lines = renderTerminalCanvas(canvas, {
     color: true,
     animationFrame: animationFrame++,
+    nodeStates: currentNodeStates,
   });
   process.stdout.write(`[H${lines.join("\n")}`);
 }, 120);

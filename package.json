@@ -1,7 +1,7 @@
 {
   "name": "orchgraph",
-  "version": "0.1.2",
-  "description": "Terminal renderer for visualizing live agent and subagent orchestration.",
+  "version": "0.2.0",
+  "description": "Terminal, SVG, and HTML renderers for live agent orchestration graphs.",
   "type": "module",
   "license": "MIT",
   "author": "maestroJeong <legend4020@snu.ac.kr>",
@@ -32,6 +32,14 @@
     "./terminal": {
       "types": "./dist/terminal.d.ts",
       "default": "./dist/terminal.js"
+    },
+    "./svg": {
+      "types": "./dist/svg.d.ts",
+      "default": "./dist/svg.js"
+    },
+    "./html": {
+      "types": "./dist/html.d.ts",
+      "default": "./dist/html.js"
     }
   },
   "bin": {
@@ -71,6 +79,8 @@
     "orchestration",
     "terminal",
     "tui",
+    "svg",
+    "html",
     "elk"
   ]
 }

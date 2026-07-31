@@ -26,6 +26,8 @@ export interface TerminalRenderOptions {
   color?: boolean;
   animationFrame?: number;
   runningFrames?: readonly string[];
+  /** Runtime-only state overlay. Applying it never recomputes graph layout. */
+  nodeStates?: Readonly<Partial<Record<string, NodeState>>>;
   theme?: TerminalStateTheme;
   edgeTheme?: TerminalEdgeTheme;
 }
@@ -39,6 +41,23 @@ export const defaultTerminalTheme: Readonly<TerminalStateTheme> = {
 };
 
 const DEFAULT_RUNNING_FRAMES = ["◐", "◓", "◑", "◒"] as const;
+
+function markerForState(state: NodeState): string {
+  switch (state) {
+    case "running":
+      return "●";
+    case "blocked":
+      return "◆";
+    case "succeeded":
+      return "✓";
+    case "failed":
+      return "✕";
+    case "queued":
+      return "◌";
+    default:
+      return "○";
+  }
+}
 
 function stringIndexAtDisplayColumn(value: string, target: number): number {
   let column = 0;
@@ -82,11 +101,14 @@ export function renderTerminalCanvas(
   for (const node of canvas.nodes) {
     const line = canvas.lines[node.markerY];
     if (line === undefined) continue;
+    const effectiveState = options.nodeStates?.[node.id] ?? node.state;
+    const effectiveNode = effectiveState === node.state ? node : { ...node, state: effectiveState };
     const marker =
-      node.state === "running" ? (runningFrames[frame % runningFrames.length] ?? "●") : undefined;
-    const source = marker ?? stringAtDisplayColumn(line, node.markerX);
-    const decorator = options.color ? theme[node.state] : undefined;
-    decorate(node.markerY, node.markerX, decorator ? decorator(source, node) : source);
+      effectiveState === "running"
+        ? (runningFrames[frame % runningFrames.length] ?? "●")
+        : markerForState(effectiveState);
+    const decorator = options.color ? theme[effectiveState] : undefined;
+    decorate(node.markerY, node.markerX, decorator ? decorator(marker, effectiveNode) : marker);
   }
 
   if (options.color && options.edgeTheme) {

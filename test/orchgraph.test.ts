@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
+import type { GraphGeometry, LayoutEngine } from "../src/index.js";
 import {
+  layoutGraph,
   layoutTerminalGraph,
   parseGraphDocument,
+  renderHtmlGraph,
+  renderSvgGraph,
   renderTerminalCanvas,
+  renderTerminalGraph,
   stripAnsi,
   style,
 } from "../src/index.js";
@@ -26,6 +31,47 @@ describe("Orchgraph", () => {
         edges: [{ source: "root", target: "missing" }],
       }),
     ).toThrow("unknown target node");
+  });
+
+  test("rejects duplicate explicit edge ids", () => {
+    expect(() =>
+      parseGraphDocument({
+        nodes: [
+          { id: "a", label: "A" },
+          { id: "b", label: "B" },
+        ],
+        edges: [
+          { id: "message", source: "a", target: "b" },
+          { id: "message", source: "b", target: "a" },
+        ],
+      }),
+    ).toThrow("duplicate edge id: message");
+  });
+
+  test("exposes renderer-neutral geometry and renders it independently", async () => {
+    const geometry = await layoutGraph(graph);
+    const canvas = renderTerminalGraph(graph, geometry);
+
+    expect(geometry.nodes).toHaveLength(graph.nodes.length);
+    expect(geometry.edges).toHaveLength(graph.edges.length);
+    expect(canvas.lines.join("\n")).toContain("delegates");
+  });
+
+  test("accepts a host-provided layout engine", async () => {
+    const geometry: GraphGeometry = {
+      width: 20,
+      height: 8,
+      nodes: [
+        { id: "root", x: 1, y: 1, width: 14, height: 4 },
+        { id: "child", x: 1, y: 6, width: 14, height: 4 },
+      ],
+      edges: [{ id: "edge:root:child:0", sections: [], labels: [] }],
+    };
+    const engine: LayoutEngine = {
+      layout: async () => geometry,
+    };
+
+    expect(await layoutGraph(graph, { engine })).toBe(geometry);
   });
 
   test("lays out a graph as a terminal canvas", async () => {
@@ -70,6 +116,72 @@ describe("Orchgraph", () => {
     });
 
     expect(rendered.join("\n")).toContain("<active:root>◐</active> 루트");
+  });
+
+  test("overlays live node state without recomputing or mutating layout", async () => {
+    const canvas = await layoutTerminalGraph(graph);
+    const rendered = renderTerminalCanvas(canvas, {
+      color: true,
+      nodeStates: { root: "failed" },
+    });
+
+    expect(rendered.join("\n")).toContain("\u001b[31m✕\u001b[0m 루트");
+    expect(canvas.nodes[0]?.state).toBe("running");
+    expect(canvas.lines.join("\n")).toContain("● 루트");
+  });
+
+  test("preserves graph metadata for renderer extensions", async () => {
+    const canvas = await layoutTerminalGraph({
+      id: "metadata-graph",
+      metadata: { tenant: "acme" },
+      nodes: [{ id: "a", label: "A", kind: "agent", metadata: { model: "codex" } }],
+      edges: [],
+    });
+
+    expect(canvas.id).toBe("metadata-graph");
+    expect(canvas.metadata).toEqual({ tenant: "acme" });
+    expect(canvas.nodes[0]?.kind).toBe("agent");
+    expect(canvas.nodes[0]?.metadata).toEqual({ model: "codex" });
+  });
+
+  test("renders reusable geometry as escaped standalone SVG", async () => {
+    const unsafeGraph = {
+      title: "Review <graph>",
+      nodes: [
+        {
+          id: "lead",
+          label: "Lead <script>alert(1)</script>",
+          detail: "codex & reviewer",
+          state: "running" as const,
+          metadata: { owner: '"ops"' },
+        },
+      ],
+      edges: [],
+    };
+    const geometry = await layoutGraph(unsafeGraph);
+    const svg = renderSvgGraph(unsafeGraph, geometry, {
+      nodeStates: { lead: "failed" },
+    });
+
+    expect(svg).toStartWith("<svg");
+    expect(svg).toContain("<title>Review &lt;graph&gt;</title>");
+    expect(svg).toContain("orchgraph-node state-failed");
+    expect(svg).toContain("Lead &lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(svg).not.toContain("<script>");
+  });
+
+  test("renders reusable geometry as an embeddable HTML fragment", async () => {
+    const geometry = await layoutGraph(graph);
+    const html = renderHtmlGraph(graph, geometry, {
+      nodeStates: { child: "succeeded" },
+      className: "review-panel",
+    });
+
+    expect(html).toStartWith('<div class="orchgraph-html review-panel"');
+    expect(html).toContain('class="orchgraph-html-node state-succeeded"');
+    expect(html).toContain('data-node-id="child"');
+    expect(html).toContain("<svg");
+    expect(html).toContain("delegates");
   });
 
   test("style() builds decorators from named colors instead of raw ANSI codes", () => {
