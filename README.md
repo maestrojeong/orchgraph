@@ -138,6 +138,64 @@ const html = renderHtmlGraph(graphDocument, geometry, {
 });
 ```
 
+#### Save a standalone SVG
+
+The SVG result already includes its namespace, view box, accessibility title,
+arrow markers, and default styles, so it can be written directly to a file:
+
+```ts
+import { writeFile } from "node:fs/promises";
+import { layoutGraph } from "orchgraph";
+import { renderSvgGraph } from "orchgraph/svg";
+
+const geometry = await layoutGraph(graphDocument);
+const svg = renderSvgGraph(graphDocument, geometry, {
+  title: "Live review team",
+  pixelScale: 10,
+  nodeStates: {
+    lead: "running",
+    reviewer: "succeeded",
+  },
+});
+
+await writeFile("review-team.svg", svg, "utf8");
+```
+
+#### Build an HTML page
+
+The HTML result is a fragment: HTML nodes sit over an SVG edge layer. Embed it
+in an existing application, or wrap it in a document for a quick standalone
+page:
+
+```ts
+import { writeFile } from "node:fs/promises";
+import { layoutGraph } from "orchgraph";
+import { renderHtmlGraph } from "orchgraph/html";
+
+const geometry = await layoutGraph(graphDocument);
+const graphHtml = renderHtmlGraph(graphDocument, geometry, {
+  className: "review-panel",
+  cellWidth: 9,
+  cellHeight: 18,
+  nodeStates: {
+    lead: "running",
+    reviewer: "succeeded",
+  },
+});
+
+const page = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Live review team</title>
+  </head>
+  <body>${graphHtml}</body>
+</html>`;
+
+await writeFile("review-team.html", page, "utf8");
+```
+
 `renderSvgGraph` returns a standalone SVG string. `renderHtmlGraph` returns an
 embeddable HTML fragment with an SVG edge layer and semantic HTML node
 elements. Both expose state/kind classes and `data-*` attributes, preserve
