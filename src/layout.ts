@@ -2,13 +2,17 @@ import { createRequire } from "node:module";
 import { Worker as ThreadWorker } from "node:worker_threads";
 import ElkApiImport from "elkjs/lib/elk-api.js";
 import WebWorker from "web-worker";
+import { resolveEdgeIds } from "./identity.js";
 import { parseGraphDocument } from "./schema.js";
 import { displayWidth } from "./terminal-width.js";
 import type {
   EdgeDirection,
   GraphDocument,
   GraphEdge,
+  GraphGeometry,
   GraphNode,
+  LayoutControls,
+  LayoutEngine,
   LayoutOptions,
   TerminalCanvas,
 } from "./types.js";
@@ -149,7 +153,7 @@ function abortReason(signal: AbortSignal): Error {
 function layoutWithControls(
   elk: ElkInstance,
   input: ReturnType<typeof layoutInput>,
-  options: LayoutOptions,
+  options: LayoutControls,
 ): Promise<ElkResult> {
   const { signal } = options;
   if (signal?.aborted) return Promise.reject(abortReason(signal));
@@ -186,13 +190,10 @@ function layoutWithControls(
   });
 }
 
-function edgeId(edge: GraphEdge, index: number): string {
-  return edge.id ?? `${edge.kind ?? "edge"}:${edge.source}:${edge.target}:${index}`;
-}
-
-function layoutInput(graph: GraphDocument, options: LayoutOptions) {
+function layoutInput(graph: GraphDocument, options: LayoutControls) {
   const spacing = normalizedSpacing(options.spacing);
   const direction = options.direction ?? graph.direction ?? "DOWN";
+  const edgeIds = resolveEdgeIds(graph.edges);
   return {
     id: graph.id ?? "orchgraph",
     layoutOptions: {
@@ -212,14 +213,14 @@ function layoutInput(graph: GraphDocument, options: LayoutOptions) {
       return { id: node.id, width, height: 4 };
     }),
     edges: graph.edges.map((edge, index) => ({
-      id: edgeId(edge, index),
+      id: edgeIds[index] ?? `edge:${index}`,
       sources: [edge.source],
       targets: [edge.target],
       ...(edge.label
         ? {
             labels: [
               {
-                id: `${edgeId(edge, index)}:label`,
+                id: `${edgeIds[index] ?? `edge:${index}`}:label`,
                 text: edge.label,
                 width: displayWidth(edge.label) + 2,
                 height: 1,
@@ -358,9 +359,38 @@ function shouldPointToEnd(direction: EdgeDirection): boolean {
   return direction === "forward" || direction === "both";
 }
 
-function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
-  const width = Math.max(1, rounded(layout.width) + 2);
-  const height = Math.max(1, rounded(layout.height) + 2);
+function geometryFromElk(layout: ElkResult): GraphGeometry {
+  return {
+    width: rounded(layout.width),
+    height: rounded(layout.height),
+    nodes: (layout.children ?? []).map((node) => ({
+      id: node.id,
+      x: rounded(node.x),
+      y: rounded(node.y),
+      width: rounded(node.width),
+      height: rounded(node.height),
+    })),
+    edges: (layout.edges ?? []).map((edge) => ({
+      id: edge.id,
+      sections: (edge.sections ?? []).map((section) =>
+        [section.startPoint, ...(section.bendPoints ?? []), section.endPoint].map((point) => ({
+          x: rounded(point.x),
+          y: rounded(point.y),
+        })),
+      ),
+      labels: (edge.labels ?? []).map((label) => ({
+        x: rounded(label.x),
+        y: rounded(label.y),
+        width: rounded(label.width),
+        height: rounded(label.height),
+      })),
+    })),
+  };
+}
+
+function renderCanvas(graph: GraphDocument, layout: GraphGeometry): TerminalCanvas {
+  const width = Math.max(1, layout.width + 2);
+  const height = Math.max(1, layout.height + 2);
   const cells = Array.from({ length: height }, () => Array.from({ length: width }, () => " "));
   const put = (x: number, y: number, value: string) => {
     if (y < 0 || y >= height || x < 0 || x >= width) return;
@@ -377,8 +407,12 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
     }
   };
 
+  const edgeIds = resolveEdgeIds(graph.edges);
   const edgesById = new Map(
-    graph.edges.map((edge, index) => [edgeId(edge, index), { ...edge, id: edgeId(edge, index) }]),
+    graph.edges.map((edge, index) => {
+      const id = edgeIds[index] ?? `edge:${index}`;
+      return [id, { ...edge, id }] as const;
+    }),
   );
   const terminalEdges: TerminalCanvas["edges"] = [];
   const labels: Array<{ x: number; y: number; text: string }> = [];
@@ -401,20 +435,18 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
 
   interface ResolvedEdge {
     edge: GraphEdge & { id: string };
-    laidOutEdge: ElkEdge;
+    laidOutEdge: GraphGeometry["edges"][number];
     sections: Point[][];
   }
   const resolvedEdges: ResolvedEdge[] = [];
 
-  for (const laidOutEdge of layout.edges ?? []) {
+  for (const laidOutEdge of layout.edges) {
     const edge = edgesById.get(laidOutEdge.id);
     if (!edge) continue;
     const dashed = (edge.style ?? "solid") === "dashed";
     const sections: Point[][] = [];
-    for (const section of laidOutEdge.sections ?? []) {
-      const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint].map(
-        (point) => ({ x: rounded(point.x) + 1, y: rounded(point.y) + 1 }),
-      );
+    for (const section of laidOutEdge.sections) {
+      const points = section.map((point) => ({ x: point.x + 1, y: point.y + 1 }));
       sections.push(points);
       for (let index = 1; index < points.length; index += 1) {
         const from = points[index - 1];
@@ -490,8 +522,8 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
         const laidOutLabel = laidOutEdge.labels?.[0];
         const middle = laidOutLabel
           ? {
-              x: rounded(laidOutLabel.x) + 1 + Math.floor(rounded(laidOutLabel.width) / 2),
-              y: rounded(laidOutLabel.y) + 1,
+              x: laidOutLabel.x + 1 + Math.floor(laidOutLabel.width / 2),
+              y: laidOutLabel.y + 1,
             }
           : midpoint(points);
         const text = ` ${edge.label} `;
@@ -503,6 +535,7 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
       source: edge.source,
       target: edge.target,
       ...(edge.kind ? { kind: edge.kind } : {}),
+      ...(edge.metadata ? { metadata: edge.metadata } : {}),
       cells: [...edgeCells.values()],
     });
   }
@@ -511,13 +544,13 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
 
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const terminalNodes: TerminalCanvas["nodes"] = [];
-  for (const laidOutNode of layout.children ?? []) {
+  for (const laidOutNode of layout.nodes) {
     const node = nodesById.get(laidOutNode.id);
     if (!node) continue;
-    const x = rounded(laidOutNode.x) + 1;
-    const y = rounded(laidOutNode.y) + 1;
-    const nodeWidth = Math.max(4, rounded(laidOutNode.width));
-    const nodeHeight = Math.max(4, rounded(laidOutNode.height));
+    const x = laidOutNode.x + 1;
+    const y = laidOutNode.y + 1;
+    const nodeWidth = Math.max(4, laidOutNode.width);
+    const nodeHeight = Math.max(4, laidOutNode.height);
     for (let row = 0; row < nodeHeight; row += 1) {
       for (let column = 0; column < nodeWidth; column += 1) put(x + column, y + row, " ");
     }
@@ -538,7 +571,10 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
     terminalNodes.push({
       id: node.id,
       label: node.label,
+      ...(node.detail ? { detail: node.detail } : {}),
+      ...(node.kind ? { kind: node.kind } : {}),
       state: node.state ?? "idle",
+      ...(node.metadata ? { metadata: node.metadata } : {}),
       x,
       y,
       width: nodeWidth,
@@ -549,7 +585,9 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
   }
 
   return {
+    ...(graph.id ? { id: graph.id } : {}),
     ...(graph.title ? { title: graph.title } : {}),
+    ...(graph.metadata ? { metadata: graph.metadata } : {}),
     nodes: terminalNodes,
     edges: terminalEdges,
     lines: cells.map((row) => row.join("").trimEnd()),
@@ -558,21 +596,67 @@ function renderCanvas(graph: GraphDocument, layout: ElkResult): TerminalCanvas {
   };
 }
 
-export async function layoutTerminalGraph(
-  value: GraphDocument | unknown,
-  options: LayoutOptions = {},
-): Promise<TerminalCanvas> {
-  const graph = parseGraphDocument(value);
-  if (options.signal?.aborted) throw abortReason(options.signal);
+function validateLayoutControls(options: LayoutControls): void {
   if (
     options.timeoutMs !== undefined &&
     (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
   ) {
     throw new RangeError("timeoutMs must be a positive finite number");
   }
+}
+
+export class ElkLayoutEngine implements LayoutEngine {
+  async layout(graph: GraphDocument, options: LayoutControls = {}): Promise<GraphGeometry> {
+    validateLayoutControls(options);
+    if (options.signal?.aborted) throw abortReason(options.signal);
+    if (graph.nodes.length === 0) {
+      return { nodes: [], edges: [], width: 0, height: 0 };
+    }
+    const elk = new ElkApi({
+      workerUrl: elkWorkerUrl,
+      workerFactory: (url) =>
+        process.versions.bun
+          ? (new WebWorker(url ?? elkWorkerUrl) as unknown as ElkWorker)
+          : new NodeElkWorker(url ?? elkWorkerUrl),
+    });
+    try {
+      const result = await layoutWithControls(elk, layoutInput(graph, options), options);
+      return geometryFromElk(result);
+    } finally {
+      elk.terminateWorker();
+    }
+  }
+}
+
+async function layoutParsedGraph(
+  graph: GraphDocument,
+  options: LayoutOptions,
+): Promise<GraphGeometry> {
+  validateLayoutControls(options);
+  if (options.signal?.aborted) throw abortReason(options.signal);
+  const engine = options.engine ?? new ElkLayoutEngine();
+  return engine.layout(graph, options);
+}
+
+/** Computes renderer-neutral geometry using ELK or a host-provided engine. */
+export async function layoutGraph(
+  value: GraphDocument | unknown,
+  options: LayoutOptions = {},
+): Promise<GraphGeometry> {
+  return layoutParsedGraph(parseGraphDocument(value), options);
+}
+
+/** Renders existing geometry without running a layout engine. */
+export function renderTerminalGraph(
+  value: GraphDocument | unknown,
+  geometry: GraphGeometry,
+): TerminalCanvas {
+  const graph = parseGraphDocument(value);
   if (graph.nodes.length === 0) {
     return {
+      ...(graph.id ? { id: graph.id } : {}),
       ...(graph.title ? { title: graph.title } : {}),
+      ...(graph.metadata ? { metadata: graph.metadata } : {}),
       nodes: [],
       edges: [],
       lines: [],
@@ -580,17 +664,15 @@ export async function layoutTerminalGraph(
       height: 0,
     };
   }
-  const elk = new ElkApi({
-    workerUrl: elkWorkerUrl,
-    workerFactory: (url) =>
-      process.versions.bun
-        ? (new WebWorker(url ?? elkWorkerUrl) as unknown as ElkWorker)
-        : new NodeElkWorker(url ?? elkWorkerUrl),
-  });
-  try {
-    const result = await layoutWithControls(elk, layoutInput(graph, options), options);
-    return renderCanvas(graph, result);
-  } finally {
-    elk.terminateWorker();
-  }
+  return renderCanvas(graph, geometry);
+}
+
+/** Backwards-compatible convenience pipeline: validate → layout → terminal render. */
+export async function layoutTerminalGraph(
+  value: GraphDocument | unknown,
+  options: LayoutOptions = {},
+): Promise<TerminalCanvas> {
+  const graph = parseGraphDocument(value);
+  const geometry = await layoutParsedGraph(graph, options);
+  return renderTerminalGraph(graph, geometry);
 }

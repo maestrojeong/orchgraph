@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveEdgeIds } from "./identity.js";
 import type { GraphDocument } from "./types.js";
 
 const metadataSchema = z.record(z.string(), z.unknown());
@@ -59,6 +60,17 @@ export const graphDocumentSchema = z
           path: ["edges", index, "target"],
         });
       }
+    }
+    const edgeIds = new Set<string>();
+    for (const [index, id] of resolveEdgeIds(graph.edges).entries()) {
+      if (edgeIds.has(id)) {
+        context.addIssue({
+          code: "custom",
+          message: `duplicate edge id: ${id}`,
+          path: ["edges", index, "id"],
+        });
+      }
+      edgeIds.add(id);
     }
   });
 

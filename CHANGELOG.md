@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.0 - 2026-07-31
+
+### Added
+
+- Renderer-neutral `GraphGeometry`, `layoutGraph`, and `renderTerminalGraph`
+  APIs so layout can be cached or consumed by additional renderers.
+- Injectable `LayoutEngine` contract and exported built-in `ElkLayoutEngine`.
+- Standalone `renderSvgGraph` and embeddable `renderHtmlGraph` renderers,
+  available from the root package and the `orchgraph/svg` and
+  `orchgraph/html` subpath exports.
+- `TerminalRenderOptions.nodeStates` for live state updates without relayout.
+- Graph, node, and edge metadata preservation on terminal output.
+- Duplicate edge-id validation and relationship-scoped anonymous edge IDs.
+
 ## 0.1.2
 
 ### Added
