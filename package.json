@@ -1,6 +1,6 @@
 {
   "name": "orchgraph",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Terminal, SVG, and HTML renderers for live agent orchestration graphs.",
   "type": "module",
   "license": "MIT",

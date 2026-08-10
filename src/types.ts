@@ -113,6 +113,8 @@ export interface TerminalCanvas {
 export interface LayoutControls {
   direction?: GraphDirection;
   spacing?: number;
+  /** Maximum node width in layout units. Default: 48. */
+  maxNodeWidth?: number;
   signal?: AbortSignal;
   timeoutMs?: number;
 }

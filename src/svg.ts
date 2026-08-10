@@ -1,4 +1,5 @@
 import { parseGraphDocument } from "./schema.js";
+import { layoutNodeText } from "./text-layout.js";
 import type { GraphDocument, GraphGeometry } from "./types.js";
 import {
   cssToken,
@@ -36,6 +37,16 @@ const DEFAULT_STYLES = `
 .orchgraph-node.state-failed rect { stroke: #f85149; }
 .orchgraph-node.state-queued rect { stroke: #58a6ff; }
 `.trim();
+
+function svgTextLines(className: string, lines: string[], x: number, firstY: number): string {
+  if (lines.length === 0) return "";
+  return `<text class="${className}" x="${x}" y="${firstY}">${lines
+    .map(
+      (line, index) =>
+        `<tspan x="${x}"${index === 0 ? "" : ' dy="1.25"'}>${escapeMarkup(line)}</tspan>`,
+    )
+    .join("")}</text>`;
+}
 
 /**
  * Renders renderer-neutral geometry as a standalone SVG string.
@@ -88,15 +99,15 @@ export function renderSvgGraph(
     ]
       .filter(Boolean)
       .join(" ");
-    const detail = node.detail ?? node.kind;
-    const labelY = detail ? y + positioned.height / 2 - 0.35 : y + positioned.height / 2 + 0.4;
+    const text = layoutNodeText(node, positioned.width);
+    const lineCount = text.labelLines.length + text.detailLines.length;
+    const firstY = y + positioned.height / 2 - ((lineCount - 1) * 1.25) / 2 + 0.4;
+    const detailY = firstY + text.labelLines.length * 1.25;
     return [
       `<g class="${classes}" data-node-id="${escapeMarkup(node.id)}"${node.kind ? ` data-kind="${escapeMarkup(node.kind)}"` : ""}${metadataAttribute(node.metadata)}>`,
       `<rect x="${x}" y="${y}" width="${positioned.width}" height="${positioned.height}" rx=".45" />`,
-      `<text class="orchgraph-node-label" x="${center}" y="${labelY}">${escapeMarkup(node.label)}</text>`,
-      detail
-        ? `<text class="orchgraph-node-detail" x="${center}" y="${y + positioned.height / 2 + 1.05}">${escapeMarkup(detail)}</text>`
-        : "",
+      svgTextLines("orchgraph-node-label", text.labelLines, center, firstY),
+      svgTextLines("orchgraph-node-detail", text.detailLines, center, detailY),
       "</g>",
     ]
       .filter(Boolean)
