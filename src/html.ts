@@ -1,4 +1,5 @@
 import { parseGraphDocument } from "./schema.js";
+import { layoutNodeText } from "./text-layout.js";
 import type { GraphDocument, GraphGeometry } from "./types.js";
 import {
   cssToken,
@@ -29,8 +30,8 @@ const DEFAULT_STYLES = `
 .orchgraph-html-edge.is-dashed { stroke-dasharray: 5 4; }
 .orchgraph-html-edge-label { position: absolute; color: #8b949e; font-size: 11px; transform: translate(-50%, -50%); white-space: nowrap; }
 .orchgraph-html-node { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #6e7681; border-radius: 6px; background: #161b22; }
-.orchgraph-html-node-label { max-width: calc(100% - 8px); overflow: hidden; color: #e6edf3; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.orchgraph-html-node-detail { max-width: calc(100% - 8px); overflow: hidden; color: #8b949e; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.orchgraph-html-node-label { max-width: calc(100% - 8px); color: #e6edf3; font-size: 12px; font-weight: 600; line-height: 1.25; text-align: center; }
+.orchgraph-html-node-detail { max-width: calc(100% - 8px); color: #8b949e; font-size: 10px; line-height: 1.25; text-align: center; }
 .orchgraph-html-node.state-running, .orchgraph-html-node.state-blocked { border-color: #d29922; }
 .orchgraph-html-node.state-succeeded { border-color: #3fb950; }
 .orchgraph-html-node.state-failed { border-color: #f85149; }
@@ -96,11 +97,13 @@ export function renderHtmlGraph(
       `width:${positioned.width * cellWidth}px`,
       `height:${positioned.height * cellHeight}px`,
     ].join(";");
-    const detail = node.detail ?? node.kind;
+    const text = layoutNodeText(node, positioned.width);
     return [
       `<div class="${classes}" data-node-id="${escapeMarkup(node.id)}" data-state="${state}"${node.kind ? ` data-kind="${escapeMarkup(node.kind)}"` : ""}${metadataAttribute(node.metadata)} style="${style}">`,
-      `<span class="orchgraph-html-node-label">${escapeMarkup(node.label)}</span>`,
-      detail ? `<span class="orchgraph-html-node-detail">${escapeMarkup(detail)}</span>` : "",
+      `<span class="orchgraph-html-node-label">${text.labelLines.map(escapeMarkup).join("<br>")}</span>`,
+      text.detailLines.length > 0
+        ? `<span class="orchgraph-html-node-detail">${text.detailLines.map(escapeMarkup).join("<br>")}</span>`
+        : "",
       "</div>",
     ]
       .filter(Boolean)

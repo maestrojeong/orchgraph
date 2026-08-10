@@ -5,6 +5,7 @@ import WebWorker from "web-worker";
 import { resolveEdgeIds } from "./identity.js";
 import { parseGraphDocument } from "./schema.js";
 import { displayWidth } from "./terminal-width.js";
+import { DEFAULT_MAX_NODE_WIDTH, layoutNodeText, MIN_NODE_WIDTH } from "./text-layout.js";
 import type {
   EdgeDirection,
   GraphDocument,
@@ -209,8 +210,8 @@ function layoutInput(graph: GraphDocument, options: LayoutControls) {
       "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
     },
     children: graph.nodes.map((node) => {
-      const width = Math.max(displayWidth(node.label) + 6, displayWidth(node.detail ?? "") + 4, 14);
-      return { id: node.id, width, height: 4 };
+      const text = layoutNodeText(node, options.maxNodeWidth ?? DEFAULT_MAX_NODE_WIDTH);
+      return { id: node.id, width: text.width, height: text.height };
     }),
     edges: graph.edges.map((edge, index) => ({
       id: edgeIds[index] ?? `edge:${index}`,
@@ -566,8 +567,18 @@ function renderCanvas(graph: GraphDocument, layout: GraphGeometry): TerminalCanv
       put(x, y + row, "│");
       put(x + nodeWidth - 1, y + row, "│");
     }
-    putText(x + 2, y + 1, `${marker(node)} ${node.label}`, nodeWidth - 3);
-    putText(x + 2, y + 2, node.detail ?? node.kind ?? "", nodeWidth - 3);
+    const text = layoutNodeText(node, nodeWidth);
+    text.labelLines.forEach((value, index) => {
+      putText(
+        x + 2,
+        y + 1 + index,
+        index === 0 ? `${marker(node)} ${value}` : `  ${value}`,
+        nodeWidth - 3,
+      );
+    });
+    text.detailLines.forEach((value, index) => {
+      putText(x + 2, y + 1 + text.labelLines.length + index, value, nodeWidth - 3);
+    });
     terminalNodes.push({
       id: node.id,
       label: node.label,
@@ -602,6 +613,12 @@ function validateLayoutControls(options: LayoutControls): void {
     (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)
   ) {
     throw new RangeError("timeoutMs must be a positive finite number");
+  }
+  if (
+    options.maxNodeWidth !== undefined &&
+    (!Number.isFinite(options.maxNodeWidth) || options.maxNodeWidth < MIN_NODE_WIDTH)
+  ) {
+    throw new RangeError(`maxNodeWidth must be at least ${MIN_NODE_WIDTH}`);
   }
 }
 

@@ -170,6 +170,31 @@ describe("Orchgraph", () => {
     expect(svg).not.toContain("<script>");
   });
 
+  test("wraps long node text consistently across layout and renderers", async () => {
+    const longGraph = {
+      nodes: [
+        {
+          id: "long",
+          label: "Persist decision graphs as reusable derived artifacts",
+          detail:
+            "Keep canonical data separate while making the rendered graph easy to inspect and share.",
+        },
+      ],
+      edges: [],
+    };
+    const geometry = await layoutGraph(longGraph, { maxNodeWidth: 32 });
+    const canvas = renderTerminalGraph(longGraph, geometry);
+    const svg = renderSvgGraph(longGraph, geometry);
+    const html = renderHtmlGraph(longGraph, geometry);
+
+    expect(geometry.nodes[0]?.width).toBeLessThanOrEqual(32);
+    expect(geometry.nodes[0]?.height).toBeGreaterThan(4);
+    expect(canvas.lines.join("\n")).toContain("reusable derived");
+    expect(svg).toContain("<tspan");
+    expect(svg).toContain("reusable derived");
+    expect(html).toContain("<br>");
+  });
+
   test("renders reusable geometry as an embeddable HTML fragment", async () => {
     const geometry = await layoutGraph(graph);
     const html = renderHtmlGraph(graph, geometry, {
@@ -211,6 +236,12 @@ describe("Orchgraph", () => {
   test("rejects invalid timeout values before starting layout work", async () => {
     await expect(layoutTerminalGraph(graph, { timeoutMs: 0 })).rejects.toThrow(
       "timeoutMs must be a positive finite number",
+    );
+  });
+
+  test("rejects a maximum node width smaller than the minimum node", async () => {
+    await expect(layoutGraph(graph, { maxNodeWidth: 10 })).rejects.toThrow(
+      "maxNodeWidth must be at least 14",
     );
   });
 

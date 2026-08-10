@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.1 - 2026-08-10
+
+### Added
+
+- Automatic display-width-aware wrapping for long node labels and details
+  across terminal, SVG, and HTML renderers.
+- `LayoutControls.maxNodeWidth` for host-specific node width limits, with a
+  readable default that prevents long text from producing ultra-wide graphs.
+
 ## 0.2.0 - 2026-07-31
 
 ### Added
