@@ -115,7 +115,7 @@ export function renderSvgGraph(
   });
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeMarkup(rootClasses("orchgraph-svg", options.className))}" role="img" width="${width * pixelScale}" height="${height * pixelScale}" viewBox="0 0 ${width} ${height}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeMarkup(rootClasses("orchgraph-svg", options.className))}" role="img"${graph.id ? ` data-graph-id="${escapeMarkup(graph.id)}"` : ""}${metadataAttribute(graph.metadata)} width="${width * pixelScale}" height="${height * pixelScale}" viewBox="0 0 ${width} ${height}">`,
     title ? `<title>${escapeMarkup(title)}</title>` : "",
     options.includeStyles === false ? "" : `<style>${DEFAULT_STYLES}</style>`,
     `<defs><marker id="${escapeMarkup(markerId)}" markerWidth="1.4" markerHeight="1.4" refX="1.1" refY=".7" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L1.4,.7 L0,1.4 z" fill="context-stroke" /></marker></defs>`,

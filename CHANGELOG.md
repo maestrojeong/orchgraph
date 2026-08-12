@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.2 - 2026-08-12
+
+### Fixed
+
+- Terminal width measurement and viewport slicing now handle combining marks,
+  emoji grapheme clusters, and wide characters consistently.
+- Standalone SVG roots now preserve graph IDs and metadata like the terminal
+  and HTML renderers.
+- The CLI now rejects unsupported layout directions instead of passing them to
+  ELK.
+
 ## 0.2.1 - 2026-08-10
 
 ### Added
