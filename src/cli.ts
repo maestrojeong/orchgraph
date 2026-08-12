@@ -32,7 +32,13 @@ if (values.help || positionals.length > 1) {
 
 const input = positionals[0] ? await readFile(positionals[0], "utf8") : await readStdin();
 const spacing = values.spacing ? Number(values.spacing) : undefined;
-const direction = values.direction as "DOWN" | "UP" | "LEFT" | "RIGHT" | undefined;
+const directions = ["DOWN", "UP", "LEFT", "RIGHT"] as const;
+const isGraphDirection = (value: string): value is (typeof directions)[number] =>
+  directions.some((candidate) => candidate === value);
+const direction = values.direction;
+if (direction !== undefined && !isGraphDirection(direction)) {
+  throw new RangeError(`direction must be one of ${directions.join(", ")}`);
+}
 const canvas = await layoutTerminalGraph(JSON.parse(input), {
   ...(typeof spacing === "number" && Number.isFinite(spacing) ? { spacing } : {}),
   ...(direction ? { direction } : {}),

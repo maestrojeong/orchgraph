@@ -1,5 +1,5 @@
 import { style } from "./ansi.js";
-import { displayWidth } from "./terminal-width.js";
+import { displayWidth, graphemes } from "./terminal-width.js";
 import type { NodeState, TerminalCanvas, TerminalEdge, TerminalNode } from "./types.js";
 
 export interface Viewport {
@@ -62,7 +62,7 @@ function markerForState(state: NodeState): string {
 function stringIndexAtDisplayColumn(value: string, target: number): number {
   let column = 0;
   let index = 0;
-  for (const character of value) {
+  for (const character of graphemes(value)) {
     if (column >= target) return index;
     column += displayWidth(character);
     index += character.length;
@@ -164,6 +164,30 @@ export function clampViewport(canvas: TerminalCanvas, viewport: Viewport): Viewp
 export function terminalViewportLines(canvas: TerminalCanvas, viewport: Viewport): string[] {
   const clamped = clampViewport(canvas, viewport);
   return Array.from({ length: clamped.height }, (_, row) =>
-    (canvas.lines[clamped.y + row] ?? "").slice(clamped.x, clamped.x + clamped.width),
+    sliceDisplayColumns(canvas.lines[clamped.y + row] ?? "", clamped.x, clamped.width),
   );
+}
+
+function sliceDisplayColumns(value: string, start: number, width: number): string {
+  const end = start + width;
+  let column = 0;
+  let result = "";
+  for (const segment of graphemes(value)) {
+    const segmentWidth = displayWidth(segment);
+    const segmentStart = column;
+    const segmentEnd = column + segmentWidth;
+    column = segmentEnd;
+
+    if (segmentEnd <= start) continue;
+    if (segmentStart >= end) break;
+
+    if (segmentStart < start || segmentEnd > end) {
+      const overlap = Math.min(segmentEnd, end) - Math.max(segmentStart, start);
+      result += " ".repeat(Math.max(0, overlap));
+    } else {
+      result += segment;
+    }
+  }
+
+  return result;
 }

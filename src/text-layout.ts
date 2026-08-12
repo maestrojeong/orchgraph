@@ -1,4 +1,4 @@
-import { displayWidth, runeWidth } from "./terminal-width.js";
+import { displayWidth, graphemes, runeWidth } from "./terminal-width.js";
 import type { GraphNode } from "./types.js";
 
 export const DEFAULT_MAX_NODE_WIDTH = 48;
@@ -15,14 +15,14 @@ function splitWideWord(value: string, maxWidth: number): string[] {
   const parts: string[] = [];
   let current = "";
   let width = 0;
-  for (const character of value) {
-    const characterWidth = runeWidth(character);
+  for (const segment of graphemes(value)) {
+    const characterWidth = runeWidth(segment);
     if (current && width + characterWidth > maxWidth) {
       parts.push(current);
       current = "";
       width = 0;
     }
-    current += character;
+    current += segment;
     width += characterWidth;
   }
   if (current) parts.push(current);

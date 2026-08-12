@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import type { GraphGeometry, LayoutEngine } from "../src/index.js";
 import {
+  displayWidth,
   layoutGraph,
   layoutTerminalGraph,
   parseGraphDocument,
@@ -100,6 +102,19 @@ describe("Orchgraph", () => {
     expect(lines).toHaveLength(4);
   });
 
+  test("slices terminal viewports by display columns", () => {
+    const canvas = {
+      nodes: [],
+      edges: [],
+      lines: ["한글abc"],
+      width: 7,
+      height: 1,
+    };
+
+    expect(terminalViewportLines(canvas, { x: 2, y: 0, width: 3, height: 1 })).toEqual(["글a"]);
+    expect(terminalViewportLines(canvas, { x: 1, y: 0, width: 3, height: 1 })).toEqual([" 글"]);
+  });
+
   test("renders an animated yellow running state without polluting the canvas", async () => {
     const canvas = await layoutTerminalGraph(graph);
     const rendered = renderTerminalCanvas(canvas, { color: true, animationFrame: 1 });
@@ -142,6 +157,24 @@ describe("Orchgraph", () => {
     expect(canvas.metadata).toEqual({ tenant: "acme" });
     expect(canvas.nodes[0]?.kind).toBe("agent");
     expect(canvas.nodes[0]?.metadata).toEqual({ model: "codex" });
+
+    const geometry = await layoutGraph({
+      id: "metadata-graph",
+      metadata: { tenant: "acme" },
+      nodes: [{ id: "a", label: "A" }],
+      edges: [],
+    });
+    const svg = renderSvgGraph(
+      {
+        id: "metadata-graph",
+        metadata: { tenant: "acme" },
+        nodes: [{ id: "a", label: "A" }],
+        edges: [],
+      },
+      geometry,
+    );
+    expect(svg).toContain('data-graph-id="metadata-graph"');
+    expect(svg).toContain('data-metadata="{&quot;tenant&quot;:&quot;acme&quot;}"');
   });
 
   test("renders reusable geometry as escaped standalone SVG", async () => {
@@ -216,6 +249,25 @@ describe("Orchgraph", () => {
     expect(style({ color: "orange" })("X")).toBe("[38;5;214mX[0m");
     expect(style({})("X")).toBe("X");
     expect(stripAnsi(style({ color: "orange", bold: true })("X"))).toBe("X");
+  });
+
+  test("measures combining characters and emoji grapheme clusters", () => {
+    expect(displayWidth("e\u0301")).toBe(1);
+    expect(displayWidth("👨‍💻")).toBe(2);
+    expect(displayWidth("❤️")).toBe(2);
+  });
+
+  test("rejects unsupported CLI directions", () => {
+    const result = Bun.spawnSync([
+      "bun",
+      fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
+      fileURLToPath(new URL("../examples/depth-two.json", import.meta.url)),
+      "--direction",
+      "SIDEWAYS",
+    ]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr.toString()).toContain("direction must be one of DOWN, UP, LEFT, RIGHT");
   });
 
   test("terminates an in-flight layout through AbortSignal", async () => {

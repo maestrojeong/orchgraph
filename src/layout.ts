@@ -4,7 +4,7 @@ import ElkApiImport from "elkjs/lib/elk-api.js";
 import WebWorker from "web-worker";
 import { resolveEdgeIds } from "./identity.js";
 import { parseGraphDocument } from "./schema.js";
-import { displayWidth } from "./terminal-width.js";
+import { displayWidth, graphemes } from "./terminal-width.js";
 import { DEFAULT_MAX_NODE_WIDTH, layoutNodeText, MIN_NODE_WIDTH } from "./text-layout.js";
 import type {
   EdgeDirection,
@@ -399,7 +399,7 @@ function renderCanvas(graph: GraphDocument, layout: GraphGeometry): TerminalCanv
   };
   const putText = (x: number, y: number, value: string, maxWidth: number) => {
     let column = 0;
-    for (const character of [...value]) {
+    for (const character of graphemes(value)) {
       const characterWidth = displayWidth(character);
       if (column + characterWidth > maxWidth) break;
       put(x + column, y, character);
