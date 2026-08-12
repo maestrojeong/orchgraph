@@ -10,6 +10,20 @@ geometry in the format your host needs. (The GIF above is
 `scripts/demo-live.mjs` animating `examples/subagent-fleet.json` one
 delegation at a time.)
 
+## Structure vs. live state
+
+Orchgraph can reuse one layout while runtime state changes. `nodeStates`
+updates status markers and borders, while `activeEdgeIds` highlights the
+execution path currently carrying work. No ELK relayout is required.
+
+| Structure only | Live execution state |
+| --- | --- |
+| ![Orchestration graph before runtime overlays](docs/images/live-state-before.svg) | ![Orchestration graph with active evidence path and node states](docs/images/live-state-active.svg) |
+
+The cyan path is active, green check marks are completed nodes, the yellow
+filled marker is running, and the blue dotted marker is queued. Generate both
+SVGs and the interactive HTML comparison with `bun run demo:live-state`.
+
 ## Install
 
 ```bash
