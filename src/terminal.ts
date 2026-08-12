@@ -1,4 +1,5 @@
 import { style } from "./ansi.js";
+import { markerForState } from "./node-state.js";
 import { displayWidth, graphemes } from "./terminal-width.js";
 import type { NodeState, TerminalCanvas, TerminalEdge, TerminalNode } from "./types.js";
 
@@ -28,6 +29,10 @@ export interface TerminalRenderOptions {
   runningFrames?: readonly string[];
   /** Runtime-only state overlay. Applying it never recomputes graph layout. */
   nodeStates?: Readonly<Partial<Record<string, NodeState>>>;
+  /** Runtime-only active edge IDs. Applying them never recomputes graph layout. */
+  activeEdgeIds?: ReadonlySet<string>;
+  /** Overrides the default cyan, bold decoration used for active edges. */
+  activeEdgeDecorator?: TerminalEdgeDecorator;
   theme?: TerminalStateTheme;
   edgeTheme?: TerminalEdgeTheme;
 }
@@ -41,23 +46,7 @@ export const defaultTerminalTheme: Readonly<TerminalStateTheme> = {
 };
 
 const DEFAULT_RUNNING_FRAMES = ["◐", "◓", "◑", "◒"] as const;
-
-function markerForState(state: NodeState): string {
-  switch (state) {
-    case "running":
-      return "●";
-    case "blocked":
-      return "◆";
-    case "succeeded":
-      return "✓";
-    case "failed":
-      return "✕";
-    case "queued":
-      return "◌";
-    default:
-      return "○";
-  }
-}
+const DEFAULT_ACTIVE_EDGE_DECORATOR = style({ color: "cyan", bold: true });
 
 function stringIndexAtDisplayColumn(value: string, target: number): number {
   let column = 0;
@@ -111,9 +100,13 @@ export function renderTerminalCanvas(
     decorate(node.markerY, node.markerX, decorator ? decorator(marker, effectiveNode) : marker);
   }
 
-  if (options.color && options.edgeTheme) {
+  if (options.color && (options.edgeTheme || options.activeEdgeIds)) {
     for (const edge of canvas.edges) {
-      const decorator = edge.kind ? options.edgeTheme[edge.kind] : undefined;
+      const decorator = options.activeEdgeIds?.has(edge.id)
+        ? (options.activeEdgeDecorator ?? DEFAULT_ACTIVE_EDGE_DECORATOR)
+        : edge.kind
+          ? options.edgeTheme?.[edge.kind]
+          : undefined;
       if (!decorator) continue;
       for (const cell of edge.cells) {
         const line = canvas.lines[cell.y];

@@ -10,6 +10,20 @@ geometry in the format your host needs. (The GIF above is
 `scripts/demo-live.mjs` animating `examples/subagent-fleet.json` one
 delegation at a time.)
 
+## Structure vs. live state
+
+Orchgraph can reuse one layout while runtime state changes. `nodeStates`
+updates status markers and borders, while `activeEdgeIds` highlights the
+execution path currently carrying work. No ELK relayout is required.
+
+| Structure only | Live execution state |
+| --- | --- |
+| ![Orchestration graph before runtime overlays](docs/images/live-state-before.svg) | ![Orchestration graph with active evidence path and node states](docs/images/live-state-active.svg) |
+
+The cyan path is active, green check marks are completed nodes, the yellow
+filled marker is running, and the blue dotted marker is queued. Generate both
+SVGs and the interactive HTML comparison with `bun run demo:live-state`.
+
 ## Install
 
 ```bash
@@ -131,9 +145,11 @@ const geometry = await layoutGraph(graphDocument);
 
 const svg = renderSvgGraph(graphDocument, geometry, {
   nodeStates: currentNodeStates,
+  activeEdgeIds: currentActiveEdgeIds,
 });
 const html = renderHtmlGraph(graphDocument, geometry, {
   nodeStates: currentNodeStates,
+  activeEdgeIds: currentActiveEdgeIds,
   className: "review-panel",
 });
 ```
@@ -271,6 +287,18 @@ const lines = renderTerminalCanvas(canvas, {
 There is no built-in default palette for `edgeTheme` since `kind` values are
 project-specific — supply a decorator only for the kinds you want to
 distinguish.
+
+For transient execution flow, pass explicit edge IDs through `activeEdgeIds`.
+Active edges render cyan and bold in color terminals and receive an
+`is-active` class plus `data-active="true"` in SVG and HTML. Like `nodeStates`,
+this overlay reuses existing geometry:
+
+```ts
+renderTerminalCanvas(canvas, {
+  color: true,
+  activeEdgeIds: new Set(["delegation:lead:worker:0"]),
+});
+```
 
 ## Embed in a TUI
 

@@ -3,6 +3,7 @@ import { Worker as ThreadWorker } from "node:worker_threads";
 import ElkApiImport from "elkjs/lib/elk-api.js";
 import WebWorker from "web-worker";
 import { resolveEdgeIds } from "./identity.js";
+import { markerForState } from "./node-state.js";
 import { parseGraphDocument } from "./schema.js";
 import { displayWidth, graphemes } from "./terminal-width.js";
 import { DEFAULT_MAX_NODE_WIDTH, layoutNodeText, MIN_NODE_WIDTH } from "./text-layout.js";
@@ -11,7 +12,6 @@ import type {
   GraphDocument,
   GraphEdge,
   GraphGeometry,
-  GraphNode,
   LayoutControls,
   LayoutEngine,
   LayoutOptions,
@@ -335,23 +335,6 @@ function midpoint(points: Point[]): Point {
   return points.at(-1) ?? { x: 0, y: 0 };
 }
 
-function marker(node: GraphNode): string {
-  switch (node.state) {
-    case "running":
-      return "●";
-    case "blocked":
-      return "◆";
-    case "succeeded":
-      return "✓";
-    case "failed":
-      return "✕";
-    case "queued":
-      return "◌";
-    default:
-      return "○";
-  }
-}
-
 function shouldPointFromStart(direction: EdgeDirection): boolean {
   return direction === "backward" || direction === "both";
 }
@@ -395,7 +378,8 @@ function renderCanvas(graph: GraphDocument, layout: GraphGeometry): TerminalCanv
   const cells = Array.from({ length: height }, () => Array.from({ length: width }, () => " "));
   const put = (x: number, y: number, value: string) => {
     if (y < 0 || y >= height || x < 0 || x >= width) return;
-    cells[y]?.splice(x, 1, value);
+    const row = cells[y];
+    if (row) row[x] = value;
   };
   const putText = (x: number, y: number, value: string, maxWidth: number) => {
     let column = 0;
@@ -572,7 +556,7 @@ function renderCanvas(graph: GraphDocument, layout: GraphGeometry): TerminalCanv
       putText(
         x + 2,
         y + 1 + index,
-        index === 0 ? `${marker(node)} ${value}` : `  ${value}`,
+        index === 0 ? `${markerForState(node.state ?? "idle")} ${value}` : `  ${value}`,
         nodeWidth - 3,
       );
     });

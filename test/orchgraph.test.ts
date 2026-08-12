@@ -351,6 +351,44 @@ describe("Orchgraph", () => {
     expect(stripAnsi(output)).toBe(canvas.lines.join("\n"));
   });
 
+  test("highlights active edges without recomputing layout", async () => {
+    const canvas = await layoutTerminalGraph(graph);
+    const edgeId = canvas.edges[0]?.id;
+    expect(edgeId).toBeDefined();
+
+    const rendered = renderTerminalCanvas(canvas, {
+      color: true,
+      activeEdgeIds: new Set(edgeId ? [edgeId] : []),
+    });
+
+    expect(rendered.join("\n")).toContain("\u001b[1;36m");
+    expect(stripAnsi(rendered.join("\n"))).toBe(renderTerminalCanvas(canvas).join("\n"));
+  });
+
+  test("exposes active edges and accessible node states in web renderers", async () => {
+    const geometry = await layoutGraph(graph);
+    const edgeId = geometry.edges[0]?.id;
+    expect(edgeId).toBeDefined();
+    const options = {
+      nodeStates: { child: "succeeded" as const },
+      activeEdgeIds: new Set(edgeId ? [edgeId] : []),
+    };
+
+    const svg = renderSvgGraph(graph, geometry, options);
+    const html = renderHtmlGraph(graph, geometry, options);
+
+    expect(svg).toContain('class="orchgraph-edge is-active"');
+    expect(svg).toContain('data-active="true"');
+    expect(svg).toContain('aria-label="Worker, succeeded"');
+    expect(svg).toContain('class="orchgraph-node-state"');
+    expect(svg).toContain(">✓</text>");
+    expect(html).toContain('class="orchgraph-html-edge is-active"');
+    expect(html).toContain('data-active="true"');
+    expect(html).toContain('aria-label="Worker, succeeded"');
+    expect(html).toContain('class="orchgraph-html-node-state"');
+    expect(html).toContain(">✓</span>");
+  });
+
   test("renders every documented example with addressable geometry", async () => {
     const examples = new URL("../examples/", import.meta.url);
     const files = (await readdir(examples)).filter((file) => file.endsWith(".json"));

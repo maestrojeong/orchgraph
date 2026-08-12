@@ -1,6 +1,6 @@
 {
   "name": "orchgraph",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "Terminal, SVG, and HTML renderers for live agent orchestration graphs.",
   "type": "module",
   "license": "MIT",
@@ -59,6 +59,7 @@
     "format": "biome check --write .",
     "test": "bun test",
     "demo": "bun src/cli.ts examples/review-team.json",
+    "demo:live-state": "bun scripts/render-live-state-demo.ts",
     "examples": "bun scripts/render-examples.ts",
     "prepack": "bun run check && bun run test && bun run build"
   },

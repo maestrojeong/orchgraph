@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.4 - 2026-08-12
+
+### Added
+
+- Runtime `activeEdgeIds` overlays for terminal, SVG, and HTML renderers,
+  allowing live execution paths to update without recomputing layout.
+- Visible state markers and accessible state labels for SVG and HTML nodes.
+
 ## 0.2.2 - 2026-08-12
 
 ### Fixed

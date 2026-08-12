@@ -1,3 +1,4 @@
+import { markerForState } from "./node-state.js";
 import { parseGraphDocument } from "./schema.js";
 import { layoutNodeText } from "./text-layout.js";
 import type { GraphDocument, GraphGeometry } from "./types.js";
@@ -27,11 +28,17 @@ const DEFAULT_STYLES = `
 .orchgraph-html { position: relative; overflow: hidden; background: #0d1117; color: #e6edf3; font-family: ui-monospace, monospace; }
 .orchgraph-html-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .orchgraph-html-edge { fill: none; stroke: #6e7681; stroke-width: 1.5; }
+.orchgraph-html-edge.is-active { stroke: #22d3ee; stroke-width: 3; }
 .orchgraph-html-edge.is-dashed { stroke-dasharray: 5 4; }
 .orchgraph-html-edge-label { position: absolute; color: #8b949e; font-size: 11px; transform: translate(-50%, -50%); white-space: nowrap; }
 .orchgraph-html-node { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #6e7681; border-radius: 6px; background: #161b22; }
 .orchgraph-html-node-label { max-width: calc(100% - 8px); color: #e6edf3; font-size: 12px; font-weight: 600; line-height: 1.25; text-align: center; }
 .orchgraph-html-node-detail { max-width: calc(100% - 8px); color: #8b949e; font-size: 10px; line-height: 1.25; text-align: center; }
+.orchgraph-html-node-state { position: absolute; top: 6px; left: 8px; color: #8b949e; font-size: 14px; font-weight: 700; }
+.orchgraph-html-node.state-running .orchgraph-html-node-state, .orchgraph-html-node.state-blocked .orchgraph-html-node-state { color: #d29922; }
+.orchgraph-html-node.state-succeeded .orchgraph-html-node-state { color: #3fb950; }
+.orchgraph-html-node.state-failed .orchgraph-html-node-state { color: #f85149; }
+.orchgraph-html-node.state-queued .orchgraph-html-node-state { color: #58a6ff; }
 .orchgraph-html-node.state-running, .orchgraph-html-node.state-blocked { border-color: #d29922; }
 .orchgraph-html-node.state-succeeded { border-color: #3fb950; }
 .orchgraph-html-node.state-failed { border-color: #f85149; }
@@ -48,7 +55,7 @@ export function renderHtmlGraph(
   options: HtmlRenderOptions = {},
 ): string {
   const graph = parseGraphDocument(value);
-  const resolved = resolveWebGraph(graph, geometry, options.nodeStates);
+  const resolved = resolveWebGraph(graph, geometry, options);
   const cellWidth = finitePositive(options.cellWidth, 8);
   const cellHeight = finitePositive(options.cellHeight, 18);
   const padding = finiteNonNegative(options.padding, 2);
@@ -57,11 +64,12 @@ export function renderHtmlGraph(
   const prefix = rendererIdPrefix(graph, options.idPrefix);
   const markerId = `${prefix}-html-arrow`;
 
-  const edges = resolved.edges.flatMap(({ graph: edge, geometry: routed, id }) => {
+  const edges = resolved.edges.flatMap(({ graph: edge, geometry: routed, id, active }) => {
     const classes = [
       "orchgraph-html-edge",
       edge.kind ? `kind-${cssToken(edge.kind)}` : "",
       edge.style === "dashed" ? "is-dashed" : "",
+      active ? "is-active" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -69,7 +77,7 @@ export function renderHtmlGraph(
       const points = section
         .map((point) => `${(point.x + padding) * cellWidth},${(point.y + padding) * cellHeight}`)
         .join(" ");
-      return `<polyline class="${classes}" data-edge-id="${escapeMarkup(id)}"${edge.kind ? ` data-kind="${escapeMarkup(edge.kind)}"` : ""}${metadataAttribute(edge.metadata)} points="${points}"${edgeMarkerAttributes(edge, markerId)} />`;
+      return `<polyline class="${classes}" data-edge-id="${escapeMarkup(id)}" data-active="${active}"${edge.kind ? ` data-kind="${escapeMarkup(edge.kind)}"` : ""}${metadataAttribute(edge.metadata)} points="${points}"${edgeMarkerAttributes(edge, markerId)} />`;
     });
   });
 
@@ -99,7 +107,8 @@ export function renderHtmlGraph(
     ].join(";");
     const text = layoutNodeText(node, positioned.width);
     return [
-      `<div class="${classes}" data-node-id="${escapeMarkup(node.id)}" data-state="${state}"${node.kind ? ` data-kind="${escapeMarkup(node.kind)}"` : ""}${metadataAttribute(node.metadata)} style="${style}">`,
+      `<div class="${classes}" role="img" aria-label="${escapeMarkup(`${node.label}, ${state}`)}" data-node-id="${escapeMarkup(node.id)}" data-state="${state}"${node.kind ? ` data-kind="${escapeMarkup(node.kind)}"` : ""}${metadataAttribute(node.metadata)} style="${style}">`,
+      `<span class="orchgraph-html-node-state" aria-hidden="true">${markerForState(state)}</span>`,
       `<span class="orchgraph-html-node-label">${text.labelLines.map(escapeMarkup).join("<br>")}</span>`,
       text.detailLines.length > 0
         ? `<span class="orchgraph-html-node-detail">${text.detailLines.map(escapeMarkup).join("<br>")}</span>`
