@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orchgraph live state comparison</title>
+  <style>
+    body { margin: 0; background: #0d1117; color: #e6edf3; font: 14px ui-monospace, monospace; }
+    main { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 20px; font-size: 20px; letter-spacing: 0; }
+    h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0; }
+    section { padding: 18px 0 24px; border-top: 1px solid #30363d; overflow-x: auto; }
+    img { display: block; max-width: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Orchgraph live state comparison</h1>
+    <section><h2>Before: structure only</h2><img src="images/live-state-before.svg" alt="Inactive orchestration graph"></section>
+    <section><h2>After: live node and edge overlays</h2><img src="images/live-state-active.svg" alt="Active orchestration graph"></section>
+    <section><h2>HTML renderer</h2><div class="orchgraph-html" role="group" aria-label="Live orchestration state" data-graph-id="live-review-flow" style="width:496px;height:756px"><style>.orchgraph-html { position: relative; overflow: hidden; background: #0d1117; color: #e6edf3; font-family: ui-monospace, monospace; }
+.orchgraph-html-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.orchgraph-html-edge { fill: none; stroke: #6e7681; stroke-width: 1.5; }
+.orchgraph-html-edge.is-active { stroke: #22d3ee; stroke-width: 3; }
+.orchgraph-html-edge.is-dashed { stroke-dasharray: 5 4; }
+.orchgraph-html-edge-label { position: absolute; color: #8b949e; font-size: 11px; transform: translate(-50%, -50%); white-space: nowrap; }
+.orchgraph-html-node { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #6e7681; border-radius: 6px; background: #161b22; }
+.orchgraph-html-node-label { max-width: calc(100% - 8px); color: #e6edf3; font-size: 12px; font-weight: 600; line-height: 1.25; text-align: center; }
+.orchgraph-html-node-detail { max-width: calc(100% - 8px); color: #8b949e; font-size: 10px; line-height: 1.25; text-align: center; }
+.orchgraph-html-node-state { position: absolute; top: 6px; left: 8px; color: #8b949e; font-size: 14px; font-weight: 700; }
+.orchgraph-html-node.state-running .orchgraph-html-node-state, .orchgraph-html-node.state-blocked .orchgraph-html-node-state { color: #d29922; }
+.orchgraph-html-node.state-succeeded .orchgraph-html-node-state { color: #3fb950; }
+.orchgraph-html-node.state-failed .orchgraph-html-node-state { color: #f85149; }
+.orchgraph-html-node.state-queued .orchgraph-html-node-state { color: #58a6ff; }
+.orchgraph-html-node.state-running, .orchgraph-html-node.state-blocked { border-color: #d29922; }
+.orchgraph-html-node.state-succeeded { border-color: #3fb950; }
+.orchgraph-html-node.state-failed { border-color: #f85149; }
+.orchgraph-html-node.state-queued { border-color: #58a6ff; }</style><svg class="orchgraph-html-edges" aria-hidden="true" viewBox="0 0 496 756"><defs><marker id="live-review-flow-html-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 z" fill="context-stroke" /></marker></defs><polyline class="orchgraph-html-edge kind-delegation is-active" data-edge-id="delegate-research" data-active="true" data-kind="delegation" points="192,126 192,180 360,180 360,342" marker-end="url(#live-review-flow-html-arrow)" /><polyline class="orchgraph-html-edge kind-delegation" data-edge-id="delegate-draft" data-active="false" data-kind="delegation" points="128,126 128,342" marker-end="url(#live-review-flow-html-arrow)" /><polyline class="orchgraph-html-edge kind-result is-active" data-edge-id="return-evidence" data-active="true" data-kind="result" points="360,414 360,576 184,576 184,630" marker-end="url(#live-review-flow-html-arrow)" /><polyline class="orchgraph-html-edge kind-verification is-dashed" data-edge-id="request-verification" data-active="false" data-kind="verification" points="128,414 128,630" marker-end="url(#live-review-flow-html-arrow)" /></svg><span class="orchgraph-html-edge-label" data-edge-id="delegate-research" style="left:428px;top:243px">delegates</span><span class="orchgraph-html-edge-label" data-edge-id="delegate-draft" style="left:68px;top:243px">delegates</span><span class="orchgraph-html-edge-label" data-edge-id="return-evidence" style="left:424px;top:513px">evidence</span><span class="orchgraph-html-edge-label" data-edge-id="request-verification" style="left:84px;top:513px">draft</span><div class="orchgraph-html-node state-succeeded" role="img" aria-label="Review lead, succeeded" data-node-id="lead" data-state="succeeded" style="left:64px;top:54px;width:184px;height:72px"><span class="orchgraph-html-node-state" aria-hidden="true">✓</span><span class="orchgraph-html-node-label">Review lead</span><span class="orchgraph-html-node-detail">plans and delegates</span></div><div class="orchgraph-html-node state-succeeded" role="img" aria-label="Evidence agent, succeeded" data-node-id="research" data-state="succeeded" style="left:280px;top:342px;width:160px;height:72px"><span class="orchgraph-html-node-state" aria-hidden="true">✓</span><span class="orchgraph-html-node-label">Evidence agent</span><span class="orchgraph-html-node-detail">collects sources</span></div><div class="orchgraph-html-node state-queued" role="img" aria-label="Draft agent, queued" data-node-id="writer" data-state="queued" style="left:32px;top:342px;width:200px;height:72px"><span class="orchgraph-html-node-state" aria-hidden="true">◌</span><span class="orchgraph-html-node-label">Draft agent</span><span class="orchgraph-html-node-detail">waiting to synthesize</span></div><div class="orchgraph-html-node state-running" role="img" aria-label="Verifier, running" data-node-id="verify" data-state="running" style="left:72px;top:630px;width:168px;height:72px"><span class="orchgraph-html-node-state" aria-hidden="true">●</span><span class="orchgraph-html-node-label">Verifier</span><span class="orchgraph-html-node-detail">checking evidence</span></div></div></section>
+  </main>
+</body>
+</html>

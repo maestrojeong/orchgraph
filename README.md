@@ -131,9 +131,11 @@ const geometry = await layoutGraph(graphDocument);
 
 const svg = renderSvgGraph(graphDocument, geometry, {
   nodeStates: currentNodeStates,
+  activeEdgeIds: currentActiveEdgeIds,
 });
 const html = renderHtmlGraph(graphDocument, geometry, {
   nodeStates: currentNodeStates,
+  activeEdgeIds: currentActiveEdgeIds,
   className: "review-panel",
 });
 ```
@@ -271,6 +273,18 @@ const lines = renderTerminalCanvas(canvas, {
 There is no built-in default palette for `edgeTheme` since `kind` values are
 project-specific — supply a decorator only for the kinds you want to
 distinguish.
+
+For transient execution flow, pass explicit edge IDs through `activeEdgeIds`.
+Active edges render cyan and bold in color terminals and receive an
+`is-active` class plus `data-active="true"` in SVG and HTML. Like `nodeStates`,
+this overlay reuses existing geometry:
+
+```ts
+renderTerminalCanvas(canvas, {
+  color: true,
+  activeEdgeIds: new Set(["delegation:lead:worker:0"]),
+});
+```
 
 ## Embed in a TUI
 

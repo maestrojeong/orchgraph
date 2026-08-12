@@ -4,6 +4,8 @@ import type { GraphDocument, GraphEdge, GraphGeometry, GraphNode, NodeState } fr
 export interface WebRenderStateOptions {
   /** Runtime-only state overlay. Applying it never recomputes graph layout. */
   nodeStates?: Readonly<Partial<Record<string, NodeState>>>;
+  /** Runtime-only active edge IDs. Applying them never recomputes graph layout. */
+  activeEdgeIds?: ReadonlySet<string>;
   /** Extra class placed on the renderer root. */
   className?: string;
   /** Prefix used by generated SVG definition ids. */
@@ -22,6 +24,7 @@ export interface ResolvedWebGraph {
     graph: GraphEdge;
     geometry: GraphGeometry["edges"][number];
     id: string;
+    active: boolean;
   }>;
 }
 
@@ -73,7 +76,7 @@ export function rendererIdPrefix(graph: GraphDocument, requested: string | undef
 export function resolveWebGraph(
   graph: GraphDocument,
   geometry: GraphGeometry,
-  states: WebRenderStateOptions["nodeStates"],
+  options: Pick<WebRenderStateOptions, "nodeStates" | "activeEdgeIds">,
 ): ResolvedWebGraph {
   const graphNodes = new Map(graph.nodes.map((node) => [node.id, node]));
   const graphEdgeIds = resolveEdgeIds(graph.edges);
@@ -89,14 +92,21 @@ export function resolveWebGraph(
         {
           graph: node,
           geometry: positioned,
-          state: states?.[node.id] ?? node.state ?? "idle",
+          state: options.nodeStates?.[node.id] ?? node.state ?? "idle",
         },
       ];
     }),
     edges: geometry.edges.flatMap((routed) => {
       const edge = graphEdges.get(routed.id);
       if (!edge) return [];
-      return [{ graph: edge, geometry: routed, id: routed.id }];
+      return [
+        {
+          graph: edge,
+          geometry: routed,
+          id: routed.id,
+          active: options.activeEdgeIds?.has(routed.id) ?? false,
+        },
+      ];
     }),
   };
 }

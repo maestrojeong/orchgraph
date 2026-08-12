@@ -1,3 +1,4 @@
+import { markerForState } from "./node-state.js";
 import { parseGraphDocument } from "./schema.js";
 import { layoutNodeText } from "./text-layout.js";
 import type { GraphDocument, GraphGeometry } from "./types.js";
@@ -26,11 +27,17 @@ export interface SvgRenderOptions extends WebRenderStateOptions {
 const DEFAULT_STYLES = `
 .orchgraph-svg { background: #0d1117; color: #e6edf3; }
 .orchgraph-edge { fill: none; stroke: #6e7681; stroke-width: .18; }
+.orchgraph-edge.is-active { stroke: #22d3ee; stroke-width: .34; }
 .orchgraph-edge.is-dashed { stroke-dasharray: .55 .4; }
 .orchgraph-edge-label { fill: #8b949e; font: 1.1px ui-monospace, monospace; text-anchor: middle; }
 .orchgraph-node rect { fill: #161b22; stroke: #6e7681; stroke-width: .18; }
 .orchgraph-node-label { fill: #e6edf3; font: 1.25px ui-monospace, monospace; font-weight: 600; text-anchor: middle; }
 .orchgraph-node-detail { fill: #8b949e; font: 1px ui-monospace, monospace; text-anchor: middle; }
+.orchgraph-node-state { fill: #8b949e; font: 1.4px ui-monospace, monospace; font-weight: 700; }
+.orchgraph-node.state-running .orchgraph-node-state, .orchgraph-node.state-blocked .orchgraph-node-state { fill: #d29922; }
+.orchgraph-node.state-succeeded .orchgraph-node-state { fill: #3fb950; }
+.orchgraph-node.state-failed .orchgraph-node-state { fill: #f85149; }
+.orchgraph-node.state-queued .orchgraph-node-state { fill: #58a6ff; }
 .orchgraph-node.state-running rect { stroke: #d29922; }
 .orchgraph-node.state-blocked rect { stroke: #d29922; }
 .orchgraph-node.state-succeeded rect { stroke: #3fb950; }
@@ -58,7 +65,7 @@ export function renderSvgGraph(
   options: SvgRenderOptions = {},
 ): string {
   const graph = parseGraphDocument(value);
-  const resolved = resolveWebGraph(graph, geometry, options.nodeStates);
+  const resolved = resolveWebGraph(graph, geometry, options);
   const padding = finiteNonNegative(options.padding, 2);
   const pixelScale = finitePositive(options.pixelScale, 8);
   const width = geometry.width + padding * 2;
@@ -67,17 +74,18 @@ export function renderSvgGraph(
   const markerId = `${prefix}-arrow`;
   const title = options.title ?? graph.title;
 
-  const edges = resolved.edges.flatMap(({ graph: edge, geometry: routed, id }) => {
+  const edges = resolved.edges.flatMap(({ graph: edge, geometry: routed, id, active }) => {
     const classes = [
       "orchgraph-edge",
       edge.kind ? `kind-${cssToken(edge.kind)}` : "",
       edge.style === "dashed" ? "is-dashed" : "",
+      active ? "is-active" : "",
     ]
       .filter(Boolean)
       .join(" ");
     const sections = routed.sections.map((section) => {
       const points = section.map((point) => `${point.x + padding},${point.y + padding}`).join(" ");
-      return `<polyline class="${classes}" data-edge-id="${escapeMarkup(id)}"${edge.kind ? ` data-kind="${escapeMarkup(edge.kind)}"` : ""}${metadataAttribute(edge.metadata)} points="${points}"${edgeMarkerAttributes(edge, markerId)} />`;
+      return `<polyline class="${classes}" data-edge-id="${escapeMarkup(id)}" data-active="${active}"${edge.kind ? ` data-kind="${escapeMarkup(edge.kind)}"` : ""}${metadataAttribute(edge.metadata)} points="${points}"${edgeMarkerAttributes(edge, markerId)} />`;
     });
     const label = edge.label && routed.labels[0];
     if (edge.label && label) {
@@ -104,8 +112,9 @@ export function renderSvgGraph(
     const firstY = y + positioned.height / 2 - ((lineCount - 1) * 1.25) / 2 + 0.4;
     const detailY = firstY + text.labelLines.length * 1.25;
     return [
-      `<g class="${classes}" data-node-id="${escapeMarkup(node.id)}"${node.kind ? ` data-kind="${escapeMarkup(node.kind)}"` : ""}${metadataAttribute(node.metadata)}>`,
+      `<g class="${classes}" role="img" aria-label="${escapeMarkup(`${node.label}, ${state}`)}" data-node-id="${escapeMarkup(node.id)}" data-state="${state}"${node.kind ? ` data-kind="${escapeMarkup(node.kind)}"` : ""}${metadataAttribute(node.metadata)}>`,
       `<rect x="${x}" y="${y}" width="${positioned.width}" height="${positioned.height}" rx=".45" />`,
+      `<text class="orchgraph-node-state" aria-hidden="true" x="${x + 1}" y="${y + 1.8}">${markerForState(state)}</text>`,
       svgTextLines("orchgraph-node-label", text.labelLines, center, firstY),
       svgTextLines("orchgraph-node-detail", text.detailLines, center, detailY),
       "</g>",
